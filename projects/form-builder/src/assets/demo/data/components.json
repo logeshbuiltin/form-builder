@@ -1,0 +1,1396 @@
+{
+  "data": [
+    {
+      "component_name": "History",
+      "component_access": {
+        "speciality_identifier": ["GP", "GM"],
+        "role_identifier": ["NSE", "NSEM"],
+        "users": [
+          {
+            "id": 1,
+            "has_access": true
+          },
+          {
+            "id": 2,
+            "has_access": false
+          }
+        ]
+      },
+      "read_only_access": ["NSE", "NSEM"],
+      "mandatory_for": ["GP", "GM"],
+      "identifier": "HIST",
+      "children": [
+        {
+          "component_name": "Referral Information",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": false
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_RI"
+        },
+        {
+          "component_name": "Allergies",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_ALLERGY"
+        },
+        {
+          "component_name": "Patient Complaints",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_COMPLAINT"
+        },
+        {
+          "component_name": "HPI",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_HPI"
+        },
+        {
+          "component_name": "Past Medical History",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_PMS"
+        },
+        {
+          "component_name": "Past Diagnosis",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_PD"
+        },
+        {
+          "component_name": "Past Multiaxial Diagnosis",
+          "component_access": {
+            "speciality_identifier": ["DD", "DD"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": false
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_PMD"
+        },
+        {
+          "component_name": "Past Procedures",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_PP"
+        },
+        {
+          "component_name": "Past Refraction",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_PR"
+        },
+        {
+          "component_name": "Birth History",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_BH"
+        },
+        {
+          "component_name": "Gynec History(Free Text)",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_GH"
+        },
+        {
+          "component_name": "Obstetric History (Free Text)",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_OH"
+        },
+        {
+          "component_name": "OB History",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_OBH"
+        },
+        {
+          "component_name": "Oncology History",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_OncH"
+        },
+        {
+          "component_name": "Family History",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_FH"
+        },
+        {
+          "component_name": "Lifestyle History",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_LIFE"
+        },
+        {
+          "component_name": "Menstrual History",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "HIST_MH"
+        }
+      ]
+    },
+    {
+      "component_name": "Examination",
+      "component_access": {
+        "speciality_identifier": ["GP", "GM"],
+        "role_identifier": ["NSE", "NSEM"],
+        "users": [
+          {
+            "id": 1,
+            "has_access": true
+          },
+          {
+            "id": 2,
+            "has_access": false
+          }
+        ]
+      },
+      "read_only_access": ["NSE", "NSEM"],
+      "mandatory_for": ["GP", "GM"],
+      "identifier": "EXAM",
+      "children": [
+        {
+          "component_name": "Patient Triage",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_PCA"
+        },
+        {
+          "component_name": "Vitals",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_V"
+        },
+        {
+          "component_name": "Growth Chart",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_GC"
+        },
+        {
+          "component_name": "Diabetic Chart",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_DC"
+        },
+        {
+          "component_name": "BP Chart",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_BPC"
+        },
+        {
+          "component_name": "Examination Notes",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_EN"
+        },
+        {
+          "component_name": "Clinical Findings",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_CF"
+        },
+        {
+          "component_name": "Gynec Examination (Free Text)",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_GE"
+        },
+        {
+          "component_name": "Obstetric Examination (Free Text)",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_OBE"
+        },
+        {
+          "component_name": "Gynec Flowsheet",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_GF"
+        },
+        {
+          "component_name": "OB Flowsheet",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_OBF"
+        },
+        {
+          "component_name": "Assessment",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_As"
+        },
+        {
+          "component_name": "Dental Chart",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_DC"
+        },
+        {
+          "component_name": "Hard Tissue Evaluation",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_HTE"
+        },
+        {
+          "component_name": "Periodontal Chart",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_PDC"
+        },
+        {
+          "component_name": "Refraction",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_R"
+        },
+        {
+          "component_name": "Image/Drawing",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_IM"
+        },
+        {
+          "component_name": "Nursing Notes",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "EXAM_NN"
+        }
+      ]
+    },
+    {
+      "component_name": "Diagnosis",
+      "component_access": {
+        "speciality_identifier": ["GP", "GM"],
+        "role_identifier": ["NSE", "NSEM"],
+        "users": [
+          {
+            "id": 1,
+            "has_access": true
+          },
+          {
+            "id": 2,
+            "has_access": false
+          }
+        ]
+      },
+      "read_only_access": ["NSE", "NSEM"],
+      "mandatory_for": ["GP", "GM"],
+      "identifier": "DIAG",
+      "children": [
+        {
+          "component_name": "Current Diagnosis",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "DIAG_CD"
+        },
+        {
+          "component_name": "Active Diagnosis",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "DIAG_AD"
+        },
+
+        {
+          "component_name": "Multiaxial Active Diagnosis",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "DIAG_AD"
+        },
+
+        {
+          "component_name": "Current Multiaxial Diagnosis",
+          "component_access": {
+            "speciality_identifier": ["GP1", "GM1"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": false
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "DIAG_CMD"
+        },
+        {
+          "component_name": "Multiaxial Active Diagnosis",
+          "component_access": {
+            "speciality_identifier": ["GP1", "GM1"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": false
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "DIAG_AMD"
+        }
+      ]
+    },
+    {
+      "component_name": "Plan",
+      "component_access": {
+        "speciality_identifier": ["GP", "GM"],
+        "role_identifier": ["NSE", "NSEM"],
+        "users": [
+          {
+            "id": 1,
+            "has_access": true
+          },
+          {
+            "id": 2,
+            "has_access": false
+          }
+        ]
+      },
+      "read_only_access": ["NSE", "NSEM"],
+      "mandatory_for": ["GP", "GM"],
+      "identifier": "PLAN",
+      "children": [
+        {
+          "component_name": "Plan Notes",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_N"
+        },
+        {
+          "component_name": "Home/Active Medications",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_AM"
+        },
+        {
+          "component_name": "CPOE",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_CPOE"
+        },
+        {
+          "component_name": "Orderset",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_OS"
+        },
+        {
+          "component_name": "Medication Orders",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_MO"
+        },
+        {
+          "component_name": "Lab Orders",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_LO"
+        },
+        {
+          "component_name": "Radiology Orders",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_RO"
+        },
+        {
+          "component_name": "Non OT Procedure Order",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_NONOT"
+        },
+        {
+          "component_name": "OT Procedure Order",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_OT"
+        },
+        {
+          "component_name": "Other Orders",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_OO",
+          "children": [
+            {
+              "component_name": "Non Med",
+              "component_access": {
+                "speciality_identifier": ["GP", "GM"],
+                "role_identifier": ["NSE", "NSEM"],
+                "users": [
+                  {
+                    "id": 1,
+                    "has_access": true
+                  },
+                  {
+                    "id": 2,
+                    "has_access": false
+                  }
+                ]
+              },
+              "read_only_access": ["NSE", "NSEM"],
+              "mandatory_for": ["GP", "GM"],
+              "identifier": "PLAN_OO_NM"
+            },
+            {
+              "component_name": "Physical Therapy",
+              "component_access": {
+                "speciality_identifier": ["GP", "GM"],
+                "role_identifier": ["NSE", "NSEM"],
+                "users": [
+                  {
+                    "id": 1,
+                    "has_access": true
+                  },
+                  {
+                    "id": 2,
+                    "has_access": false
+                  }
+                ]
+              },
+              "read_only_access": ["NSE", "NSEM"],
+              "mandatory_for": ["GP", "GM"],
+              "identifier": "PLAN_OO_PT"
+            },
+            {
+              "component_name": "Occupational Therapy",
+              "component_access": {
+                "speciality_identifier": ["GP", "GM"],
+                "role_identifier": ["NSE", "NSEM"],
+                "users": [
+                  {
+                    "id": 1,
+                    "has_access": true
+                  },
+                  {
+                    "id": 2,
+                    "has_access": false
+                  }
+                ]
+              },
+              "read_only_access": ["NSE", "NSEM"],
+              "mandatory_for": ["GP", "GM"],
+              "identifier": "PLAN_OO_OT"
+            },
+            {
+              "component_name": "Speech Therapy",
+              "component_access": {
+                "speciality_identifier": ["GP", "GM"],
+                "role_identifier": ["NSE", "NSEM"],
+                "users": [
+                  {
+                    "id": 1,
+                    "has_access": true
+                  },
+                  {
+                    "id": 2,
+                    "has_access": false
+                  }
+                ]
+              },
+              "read_only_access": ["NSE", "NSEM"],
+              "mandatory_for": ["GP", "GM"],
+              "identifier": "PLAN_OO_ST"
+            },
+            {
+              "component_name": "Audiometry",
+              "component_access": {
+                "speciality_identifier": ["GP", "GM"],
+                "role_identifier": ["NSE", "NSEM"],
+                "users": [
+                  {
+                    "id": 1,
+                    "has_access": true
+                  },
+                  {
+                    "id": 2,
+                    "has_access": false
+                  }
+                ]
+              },
+              "read_only_access": ["NSE", "NSEM"],
+              "mandatory_for": ["GP", "GM"],
+              "identifier": "PLAN_OO_A"
+            },
+            {
+              "component_name": "Patient Advice",
+              "component_access": {
+                "speciality_identifier": ["GP", "GM"],
+                "role_identifier": ["NSE", "NSEM"],
+                "users": [
+                  {
+                    "id": 1,
+                    "has_access": true
+                  },
+                  {
+                    "id": 2,
+                    "has_access": false
+                  }
+                ]
+              },
+              "read_only_access": ["NSE", "NSEM"],
+              "mandatory_for": ["GP", "GM"],
+              "identifier": "PLAN_OO_PA"
+            },
+            {
+              "component_name": "Diet Advice",
+              "component_access": {
+                "speciality_identifier": ["GP", "GM"],
+                "role_identifier": ["NSE", "NSEM"],
+                "users": [
+                  {
+                    "id": 1,
+                    "has_access": true
+                  },
+                  {
+                    "id": 2,
+                    "has_access": false
+                  }
+                ]
+              },
+              "read_only_access": ["NSE", "NSEM"],
+              "mandatory_for": ["GP", "GM"],
+              "identifier": "PLAN_OO_DA"
+            },
+            {
+              "component_name": "Anesthesia",
+              "component_access": {
+                "speciality_identifier": ["GP", "GM"],
+                "role_identifier": ["NSE", "NSEM"],
+                "users": [
+                  {
+                    "id": 1,
+                    "has_access": true
+                  },
+                  {
+                    "id": 2,
+                    "has_access": false
+                  }
+                ]
+              },
+              "read_only_access": ["NSE", "NSEM"],
+              "mandatory_for": ["GP", "GM"],
+              "identifier": "PLAN_OO_An"
+            },
+            {
+              "component_name": "Admin Order",
+              "component_access": {
+                "speciality_identifier": ["GP", "GM"],
+                "role_identifier": ["NSE", "NSEM"],
+                "users": [
+                  {
+                    "id": 1,
+                    "has_access": true
+                  },
+                  {
+                    "id": 2,
+                    "has_access": false
+                  }
+                ]
+              },
+              "read_only_access": ["NSE", "NSEM"],
+              "mandatory_for": ["GP", "GM"],
+              "identifier": "PLAN_OO_AO"
+            },
+            {
+              "component_name": "Miscellaneous",
+              "component_access": {
+                "speciality_identifier": ["GP", "GM"],
+                "role_identifier": ["NSE", "NSEM"],
+                "users": [
+                  {
+                    "id": 1,
+                    "has_access": true
+                  },
+                  {
+                    "id": 2,
+                    "has_access": false
+                  }
+                ]
+              },
+              "read_only_access": ["NSE", "NSEM"],
+              "mandatory_for": ["GP", "GM"],
+              "identifier": "PLAN_OO_M"
+            }
+          ]
+        },
+        {
+          "component_name": "Admit",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_ADMIT"
+        },
+        {
+          "component_name": "Referral Consultation",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_RC"
+        },
+        {
+          "component_name": "Immunization",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_IMM"
+        },
+        {
+          "component_name": "Sick Leave",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_SL"
+        },
+        {
+          "component_name": "Refraction Order",
+          "component_access": {
+            "speciality_identifier": ["GP", "GM"],
+            "role_identifier": ["NSE", "NSEM"],
+            "users": [
+              {
+                "id": 1,
+                "has_access": true
+              },
+              {
+                "id": 2,
+                "has_access": false
+              }
+            ]
+          },
+          "read_only_access": ["NSE", "NSEM"],
+          "mandatory_for": ["GP", "GM"],
+          "identifier": "PLAN_RefO"
+        }
+      ]
+    }
+  ]
+}

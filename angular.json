@@ -1,0 +1,136 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "form-builder": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
+      "root": "projects/form-builder",
+      "sourceRoot": "projects/form-builder/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:browser",
+          "options": {
+            "outputPath": "dist/form-builder",
+            "index": "projects/form-builder/src/index.html",
+            "main": "projects/form-builder/src/main.ts",
+            "polyfills": "projects/form-builder/src/polyfills.ts",
+            "tsConfig": "projects/form-builder/tsconfig.app.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              "projects/form-builder/src/favicon.ico",
+              "projects/form-builder/src/assets"
+            ],
+            "styles": [
+              "projects/form-builder/src/styles.scss"
+            ],
+            "scripts": []
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kb",
+                  "maximumError": "5mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "2kb",
+                  "maximumError": "4kb"
+                }
+              ],
+              "fileReplacements": [
+                {
+                  "replace": "projects/form-builder/src/environments/environment.ts",
+                  "with": "projects/form-builder/src/environments/environment.prod.ts"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "buildOptimizer": false,
+              "optimization": false,
+              "vendorChunk": true,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "namedChunks": true
+            },
+            "dev": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kb",
+                  "maximumError": "5mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "2kb",
+                  "maximumError": "4kb"
+                }
+              ],
+              "fileReplacements": [
+                {
+                  "replace": "projects/form-builder/src/environments/environment.ts",
+                  "with": "projects/form-builder/src/environments/environment.dev.ts"
+                }
+              ],
+              "outputHashing": "all"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "configurations": {
+            "production": {
+              "browserTarget": "form-builder:build:production"
+            },
+            "development": {
+              "browserTarget": "form-builder:build:development"
+            },
+             "dev": {
+              "browserTarget": "form-builder:build:dev"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular-devkit/build-angular:extract-i18n",
+          "options": {
+            "browserTarget": "form-builder:build"
+          }
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "main": "projects/form-builder/src/test.ts",
+            "polyfills": "projects/form-builder/src/polyfills.ts",
+            "tsConfig": "projects/form-builder/tsconfig.spec.json",
+            "karmaConfig": "projects/form-builder/karma.conf.js",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              "projects/form-builder/src/favicon.ico",
+              "projects/form-builder/src/assets"
+            ],
+            "styles": [
+              "projects/form-builder/src/styles.scss"
+
+            ],
+            "scripts": [
+            ]
+          }
+        }
+      }
+    }
+  },
+  "cli": {
+    "analytics": false
+  }
+}

@@ -1,0 +1,226 @@
+[
+  {
+    "type": "ALLERGY",
+    "availableFields": [
+      {
+        "key": "Allergy Name",
+        "value": "{{name}}"
+      },
+      {
+        "key": "Allergy Reactions",
+        "value": "{{reaction}}"
+      },
+      {
+        "key": "Comments",
+        "value": "{{comments}}"
+      }
+    ]
+  },
+  {
+    "type": "VITALS",
+    "availableFields": [
+      {
+        "key": "Height",
+        "value": "{{height}}"
+      },
+      {
+        "key": "Weight",
+        "value": "{{weight}}"
+      },
+      {
+        "key": "Pulse",
+        "value": "{{pulse}}"
+      }
+    ]
+  },
+  {
+    "type": "COMPLAINT",
+    "availableFields": [
+      {
+        "key": "Complaint Name",
+        "value": "{{name}}"
+      },
+
+      {
+        "key": "Comments",
+        "value": "{{comments}}"
+      }
+
+    ]
+  },
+  {
+    "type": "CURRENT_DIAGNOSIS",
+    "availableFields": [
+      {
+        "key": "Diagnosis Name",
+        "value": "{{name}}"
+      },
+
+      {
+        "key": "Comments",
+        "value": "{{comments}}"
+      }
+
+    ]
+  },
+  {
+    "type": "HPI",
+    "availableFields": [
+      {
+        "key": "HPI Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+  {
+    "type": "LAB_ORDER",
+    "availableFields": [
+      {
+        "key": "LAB Name",
+        "value": "{{name}}"
+      }
+    ]
+  }
+  ,
+  {
+    "type": "RAD_ORDER",
+    "availableFields": [
+      {
+        "key": "Radiology Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+  {
+    "type": "NON_OT_ORDER",
+    "availableFields": [
+      {
+        "key": "NON_OT Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+  {
+    "type": "PAST_MEDICAL_HISTORY",
+    "availableFields": [
+      {
+        "key": "PastMedical Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+  {
+    "type": "EXAMINATION_NOTES",
+    "availableFields": [
+      {
+        "key": "Examination Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+  {
+    "type": "MEDICATION_ORDER",
+    "availableFields": [
+      {
+        "key": "Medication Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+  {
+    "type": "NURSING_ORDER",
+    "availableFields": [
+      {
+        "key": "Nursing Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+  {
+    "type": "IMAGE_DRAWING"
+  },
+  {
+    "type": "REFERRAL_CONSULTATION"
+  },
+  {
+    "type": "ORDER_SET"
+  },
+  {
+    "type": "CLINICAL_CALCULATORS"
+  },
+  {
+    "type": "NON_MED",
+    "availableFields": [
+      {
+        "key": "NonMed Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+  {
+    "type": "PHYSIOTHERAPY_ORDER",
+    "availableFields": [
+      {
+        "key": "Physiotherapy Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+
+  {
+    "type": "SPEECH_ORDER",
+    "availableFields": [
+      {
+        "key": "Speech Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+
+  {
+    "type": "OCCUPATIONALTHERAPY_ORDER",
+    "availableFields": [
+      {
+        "key": "OccupationalTherapy Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+   {
+    "type": " AUDIOMETRY_ORDER",
+    "availableFields": [
+      {
+        "key": "Audiometry  Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+   {
+    "type": "HAEMODIALYSIS_ORDER",
+    "availableFields": [
+      {
+        "key": "Haemodialysis Name",
+        "value": "{{name}}"
+      }
+    ]
+  },
+   {
+    "type": "ANESTHESIA_ORDER",
+    "availableFields": [
+      {
+        "key": "Anesthesia Name",
+        "value": "{{name}}"
+      }
+    ]
+  }
+  ,
+   {
+    "type": "OTPROCEDURE_ORDER",
+    "availableFields": [
+      {
+        "key": "OTProcedure Name",
+        "value": "{{name}}"
+      }
+    ]
+  }
+]

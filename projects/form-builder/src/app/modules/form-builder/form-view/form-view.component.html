@@ -1,0 +1,37 @@
+<div class="col-12 flex mt-2">
+  <div class="col-6 p-0"></div>
+  <div class="col-6 flex justify-content-end p-0">
+    <button
+      pButton
+      pRipple
+      label="Print"
+      pTooltip="Print"
+      tooltipPosition="bottom"
+      icon="pi pi-print"
+      (click)="print()"
+      class="p-button-rounded p-button-success mr-2"
+    ></button>
+    <button
+      pButton
+      pRipple
+      label="Back"
+      pTooltip="Back "
+      tooltipPosition="bottom"
+      (click)="back()"
+      class="p-button-rounded p-button-warning mr-2"
+    ></button>
+  </div>
+</div>
+<div
+  class="col-12 p-0 p-d-flex justify-content-center"
+  style="display: block !important"
+>
+<div class="layout-invoice-page" id="print">
+  <div class="grid layout-invoice-content" style="height: 650px">
+    <div class="p-card mt-2" style="width: 1200px !important">
+      <div #contentContainer></div>
+      <!-- <div [innerHtml]="displayContent"></div> -->
+    </div>
+  </div>
+</div>
+</div>

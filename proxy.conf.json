@@ -1,0 +1,12 @@
+{
+  "/api/*": {
+    "target": "https://mykarecloud360-dev.hatiintl.com.my/",
+    "secure": false,
+    "logLevel": "debug",
+    "pathRewrite": {
+      "^/api/": ""
+    },
+    "changeOrigin": true,
+    "withCredentials": true
+  }
+}

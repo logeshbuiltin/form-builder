@@ -1,0 +1,5 @@
+export enum FormComponentType {
+  ALL = 'ALL',
+  EDITOR_CUSTOM_LAYOUT = 'EDITOR_CUSTOM_LAYOUT',
+  EMR_COMPONENT = 'EMR_COMPONENT',
+}

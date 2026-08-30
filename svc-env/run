@@ -1,0 +1,5 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+
+# add environment variable into files
+dockerize -template /app/env.js.template:/usr/share/nginx/html/assets/env.js

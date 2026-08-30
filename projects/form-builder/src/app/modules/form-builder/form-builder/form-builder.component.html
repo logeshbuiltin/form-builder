@@ -1,0 +1,338 @@
+<!-- Form Loader Overlay -->
+<div class="form-loader-overlay" *ngIf="isLoading">
+  <div class="loader-container">
+    <div class="spinner"></div>
+    <div class="loader-text">
+      Saving Form<span class="loader-dots"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Modern Studio Header Navbar -->
+<header class="fb-header-navbar">
+  <div class="fb-header-left">
+    <div class="fb-brand-icon">
+      <i class="pi pi-pencil"></i>
+    </div>
+    <div class="fb-brand-info">
+      <div class="fb-title-row">
+        <h1 class="fb-title">Form Builder</h1>
+        <span class="fb-source-badge" [ngClass]="{
+            'badge-form': source === 'FORM',
+            'badge-emr': source === 'EMR-COMPONENT',
+            'badge-layout': source === 'CUSTOM-LAYOUT'
+          }">
+          <i class="pi" [ngClass]="{
+              'pi-file': source === 'FORM',
+              'pi-id-card': source === 'EMR-COMPONENT',
+              'pi-th-large': source === 'CUSTOM-LAYOUT'
+            }"></i>
+          {{
+          source === "FORM"
+          ? "Standard Form"
+          : source === "EMR-COMPONENT"
+          ? "EMR Component"
+          : "Custom Layout"
+          }}
+        </span>
+      </div>
+      <p class="fb-subtitle">Design and configure interactive clinical forms</p>
+    </div>
+  </div>
+
+  <!-- AI Search / Assistant Bar -->
+  <div class="fb-header-center">
+    <div class="fb-ai-searchbar" [class.focused]="isAiFocused">
+      <div class="ai-sparkle-badge">
+        <i class="pi pi-bolt"></i>
+      </div>
+      <input type="text" class="ai-search-input" placeholder="Ask AI to design fields, templates, or assist..."
+        [(ngModel)]="aiSearchQuery" (focus)="isAiFocused = true" (blur)="isAiFocused = false"
+        (keydown.enter)="onAISearch()" />
+      <div class="ai-input-actions">
+        <button *ngIf="aiSearchQuery" type="button" class="ai-action-btn ai-clear-btn" (click)="aiSearchQuery = ''"
+          pTooltip="Clear" tooltipPosition="bottom">
+          <i class="pi pi-times"></i>
+        </button>
+        <span class="ai-shortcut-badge" *ngIf="!aiSearchQuery">AI</span>
+        <button type="button" class="ai-action-btn ai-submit-btn" [disabled]="!aiSearchQuery" (click)="onAISearch()"
+          pTooltip="Ask AI" tooltipPosition="bottom">
+          <i class="pi pi-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="fb-header-actions">
+    <!-- Primary & Secondary Save Actions -->
+    <div class="fb-action-group">
+      <button pButton id="saveForm" class="fb-btn fb-btn-primary" [loading]="isLoad"
+        (click)="source === 'FORM' ? saveForm() : saveCustomLayout()" type="button" pRipple icon="pi pi-save"
+        iconPos="left" [label]="
+          source === 'FORM'
+            ? 'Save Form'
+            : source === 'EMR-COMPONENT'
+            ? 'Save / Update Component'
+            : 'Update Layout'
+        "></button>
+
+      <button pButton class="fb-btn fb-btn-secondary" (click)="saveAsCustomLayout()"
+        *ngIf="source === 'FORM' || source === 'CUSTOM-LAYOUT'" icon="pi pi-copy" iconPos="left" label="Save as Layout"
+        pRipple></button>
+
+      <button pButton class="fb-btn fb-btn-demographic" (click)="openDemographicDialog()" icon="pi pi-user-plus"
+        iconPos="left" label="Add Demographic" pRipple pTooltip="Create and add custom demographic field"
+        tooltipPosition="bottom"></button>
+    </div>
+
+    <div class="fb-nav-divider"></div>
+
+    <!-- Utility Quick Actions -->
+    <div class="fb-utility-group">
+      <button pButton pRipple icon="pi pi-upload" class="fb-icon-btn p-button-rounded p-button-text"
+        pTooltip="Import HTML with Scripts" tooltipPosition="bottom" (click)="openDialog()"></button>
+
+      <button pButton pRipple icon="pi pi-eye" class="fb-icon-btn p-button-rounded p-button-text"
+        pTooltip="Preview Form" tooltipPosition="bottom" (click)="viewForm()"></button>
+
+      <button pButton type="button" pRipple icon="pi pi-question-circle"
+        class="fb-icon-btn p-button-rounded p-button-text" pTooltip="GrapesJS Documentation" tooltipPosition="bottom"
+        (click)="editorHelp()" *ngIf="source === 'FORM'"></button>
+    </div>
+  </div>
+</header>
+
+<!-- Editor Container -->
+<div class="fb-editor-wrapper">
+  <div id="gjs" class="gjs-container"></div>
+</div>
+
+<router-outlet></router-outlet>
+<p-dialog [(visible)]="importWithScriptsDialog" header="Import HTML with Scripts" [modal]="true"
+  [breakpoints]="{ '960px': '75vw', '640px': '100vw' }" [style]="{ width: '40vw' }" [responsive]="true"
+  styleClass="p-fluid">
+  <div class="flex justify-content-center">
+    <div class="col-10 md:col-10 lg:col-10">
+      <textarea rows="10" cols="30" pInputTextarea [(ngModel)]="importHTMLScript">
+      </textarea>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="grid justify-content-center">
+      <div class="mr-2">
+        <button id="Clear" pButton pRipple type="button" class="p-button-warning" (click)="clearDialogScripts()">
+          {{ "Clear" }}
+        </button>
+      </div>
+      <div>
+        <button pButton id="btnSaveCustomLayout" class="p-button-success" isLoading="true" (click)="saveDialogScripts()"
+          type="button" pRipple>
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+</p-dialog>
+
+
+<p-dialog [(visible)]="pDialogCustomLayout" header="Save as Custom Layout" [modal]="true"
+  [breakpoints]="{ '960px': '75vw', '640px': '100vw' }" [style]="{ width: '40vw' }" [responsive]="true"
+  styleClass="p-fluid">
+  <form [formGroup]="customLayoutForm">
+    <div class="flex justify-content-center">
+      <div class="col-4 md:col-4 lg:col-4">
+        <label>Layout Name*</label>
+        <input pInputText id="LayoutName" autofocus="true" formControlName="name" type="text" [ngClass]="{
+            'ng-invalid ng-dirty':
+              isFormSubmit && customLayoutForm.controls['name'].errors
+          }" />
+      </div>
+    </div>
+
+    <div class="flex justify-content-center">
+      <div class="col-4 md:col-4 lg:col-4">
+        <label>Font Awesome Icon (<a style="color: blue" target="_blank"
+            href="https://fontawesome.com/v4/icons/">https://fontawesome.com/v4/icons/</a>)
+        </label>
+        <input pInputText id="LayoutIcon" autofocus="true" formControlName="icon" type="text" [ngClass]="{
+            'ng-invalid ng-dirty':
+              isFormSubmit && customLayoutForm.controls['icon'].errors
+          }" />
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="grid justify-content-center">
+        <div class="mr-2">
+          <button id="Clear" pButton pRipple type="button" class="p-button-warning" (click)="clear()">
+            {{ "Clear" }}
+          </button>
+        </div>
+        <div>
+          <button pButton id="btnSaveCustomLayout" class="p-button-success" isLoading="true"
+            (click)="saveCustomLayout()" type="button" pRipple>
+            Save
+          </button>
+          <!-- <app-lt-post-button
+            id="btnSaveCustomLayout"
+            [buttonClass]="'login-button'"
+            [buttonIsLoading]="isLoading"
+            (buttonClickEvent)="saveCustomLayout()"
+            buttonLabel="{{ this.selectedFormComponent ? 'Update' : 'Save' }}"
+            [isLicenseExpiryValidation]="false"
+          ></app-lt-post-button> -->
+        </div>
+      </div>
+    </div>
+  </form>
+</p-dialog>
+
+<!-- <p-confirmDialog [style]="{ width: '450px' }"></p-confirmDialog> -->
+<p-toast position="top-right" key="tst" [preventOpenDuplicates]="true"></p-toast>
+<p-dialog header="{{ 'Add Script'  }}" [modal]="true" [style]="{ width: '65rem' ,height:'30rem'}"
+  (onHide)="onHideUloadDialog($event)">
+
+
+  <div class="p-fluid p-formgrid grid m-0">
+
+    <div class="field col-12 md:col-8 ml-4 mt-3">
+      <form [formGroup]="scriptForm">
+
+        <label for="cmts">Script</label>
+        <input id="cmts" type="text" pInputText formControlName="scriptUrl" style="width: 100%" />
+      </form>
+
+    </div>
+
+
+    <div class="flex col-12 md:col-1 ml-6 mt-3 justify-content-center align-items-center">
+      <div class="ml-6"> <button pButton pRipple label="{{ 'Save'  }}" type="button" class="p-button-primary"></button>
+      </div>
+
+      <div class="ml-2"> <button pButton pRipple label="{{ 'Clear'  }}" type="button" class="p-button-warning"
+          (click)="ClearAll()"></button></div>
+
+
+      <div class="ml-2">
+        <p-fileUpload #fileUpload name="file" mode="basic" chooseLabel="{{ 'Upload' }}"
+          accept=".js,application/json"></p-fileUpload>
+      </div>
+
+
+      <!-- (onSelect)="onFileSelected($event)" -->
+
+
+    </div>
+  </div>
+
+
+  <div class="p-2">
+    <p-table [value]="this.scriptData" [scrollable]="true" scrollHeight="300px" [tableStyle]="{ 'min-width': '50rem' }">
+      <ng-template pTemplate="header">
+        <tr>
+          <th>
+            Script Url
+          </th>
+          <th>
+            Action
+          </th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-myNotes>
+        <tr>
+          <td class="text-xl" style="text-align: left;">
+            {{myNotes.scriptUrl}}
+          </td>
+          <td style="text-align: left;">
+
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+
+  </div>
+</p-dialog>
+
+<!-- Custom Demographic Field Dialog -->
+<p-dialog [(visible)]="pDialogDemographic" header="Create Custom Demographic Field" [modal]="true"
+  [breakpoints]="{ '960px': '75vw', '640px': '95vw' }" [style]="{ width: '38vw', minWidth: '380px' }"
+  [responsive]="true" [draggable]="false" [resizable]="false" styleClass="p-fluid demographic-dialog">
+  <form [formGroup]="demographicForm" (ngSubmit)="saveDemographicField()">
+    <div class="grid p-fluid">
+      <!-- Label -->
+      <div class="col-12 field mb-3">
+        <label for="demoLabel" class="font-semibold text-sm block mb-1">
+          Field Display Label <span class="text-red-500">*</span>
+        </label>
+        <input id="demoLabel" type="text" pInputText formControlName="label"
+          placeholder="e.g. Emergency Contact, Insurance ID" (input)="onDemographicLabelInput()" autofocus />
+        <small class="text-red-500 block mt-1"
+          *ngIf="demographicForm.get('label')?.touched && demographicForm.get('label')?.invalid">
+          Field label is required.
+        </small>
+      </div>
+
+      <!-- Key -->
+      <div class="col-12 field mb-3">
+        <label for="demoKey" class="font-semibold text-sm block mb-1">
+          Identifier / Field Key
+        </label>
+        <input id="demoKey" type="text" pInputText formControlName="key" placeholder="e.g. PatientEmergencyContact" />
+        <small class="text-500 block mt-1 text-xs">
+          Unique variable identifier used in form submissions.
+        </small>
+      </div>
+
+      <!-- Control Type -->
+      <div class="col-12 md:col-6 field mb-3">
+        <label for="demoType" class="font-semibold text-sm block mb-1">
+          Input Control Type <span class="text-red-500">*</span>
+        </label>
+        <p-dropdown id="demoType" [options]="demographicTypes" formControlName="type" optionLabel="label"
+          optionValue="value" placeholder="Select Type"></p-dropdown>
+      </div>
+
+      <!-- Icon -->
+      <div class="col-12 md:col-6 field mb-3">
+        <label for="demoIcon" class="font-semibold text-sm block mb-1">
+          Category Icon
+        </label>
+        <p-dropdown id="demoIcon" [options]="demographicIcons" formControlName="icon" optionLabel="label"
+          optionValue="value" placeholder="Select Icon"></p-dropdown>
+      </div>
+
+      <!-- Placeholder -->
+      <div class="col-12 field mb-3" *ngIf="demographicForm.get('type')?.value !== 'label'">
+        <label for="demoPlaceholder" class="font-semibold text-sm block mb-1">
+          Input Placeholder (Optional)
+        </label>
+        <input id="demoPlaceholder" type="text" pInputText formControlName="placeholder"
+          placeholder="e.g. Enter contact number..." />
+      </div>
+
+      <!-- Live Preview -->
+      <div class="col-12 mb-3">
+        <label class="font-semibold text-sm block mb-1 text-600">Preview:</label>
+        <div class="p-3 border-round border-1 surface-border surface-50 text-sm">
+          <div class="flex align-items-center gap-2 mb-2 text-primary font-semibold">
+            <i [class]="demographicForm.get('icon')?.value || 'fa fa-user'"></i>
+            <span>Block: {{ demographicForm.get('label')?.value || 'Custom Field' }}</span>
+          </div>
+          <div class="text-xs text-500">
+            Will be added to the <strong>Custom Demographics</strong> category in GrapesJS.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex justify-content-end gap-2 mt-4 pt-2 border-top-1 surface-border">
+      <button pButton pRipple type="button" label="Cancel" class="p-button-text p-button-secondary"
+        (click)="pDialogDemographic = false"></button>
+      <button pButton pRipple type="submit" label="Add to Custom Demographics" icon="pi pi-check" class="p-button-success"
+        [disabled]="demographicForm.invalid"></button>
+    </div>
+  </form>
+</p-dialog>

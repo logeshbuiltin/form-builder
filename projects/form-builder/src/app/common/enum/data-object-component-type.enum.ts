@@ -1,0 +1,9 @@
+export enum DataObjectComponentType {
+  DROPDOWN = 'DD',
+  TEXT_BOX = 'TB',
+  INPUT_NUMBER = 'INB',
+  TEXT_BOX_WITH_UNIT = 'TB-U',
+  TEXT_WITH_SEPARATOR = 'TB-S',
+  DROPDOWN_WITH_UNIT = 'DD-U',
+  INPUT_NUMBER_WITH_UNIT = 'IN-U',
+}
