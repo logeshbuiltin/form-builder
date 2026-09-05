@@ -27,10 +27,10 @@
   style="display: block !important"
 >
 <div class="layout-invoice-page" id="print">
-  <div class="grid layout-invoice-content" style="height: 650px">
-    <div class="p-card mt-2" style="width: 1200px !important">
+  <div class="grid layout-invoice-content" style="min-height: 750px">
+    <div class="p-card mt-2" style="width: 1200px !important; min-height: 750px; padding: 20px; box-sizing: border-box; background: #ffffff;">
       <div #contentContainer></div>
-      <!-- <div [innerHtml]="displayContent"></div> -->
+      <div *ngIf="!isIframeRendered" [innerHtml]="displayContent"></div>
     </div>
   </div>
 </div>

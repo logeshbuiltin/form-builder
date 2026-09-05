@@ -8,6 +8,7 @@ import { TemplateDataObject } from '../model/template-data-object';
 import { TemplateDataTable } from '../model/template-data-table';
 import { SettingsData } from '../settings-data';
 import { DataObjectService } from './data-object.service';
+import { DOCUMENT_FORMATS } from '../constant/document-formats.constant';
 
 @Injectable({
   providedIn: 'root',
@@ -191,6 +192,51 @@ export class EditorBlockManagerService {
           content: htmlData,
         });
       }
+    });
+  }
+
+  /** Reusable domain-neutral binding primitives for the document engine. */
+  public addDataBindingBlocks(editor: any): void {
+    if (!editor?.BlockManager) return;
+    const category = { id: 'data-bindings', label: 'Data Bindings', open: true };
+    const blocks = [
+      {
+        id: 'binding-patient-name', label: 'Patient name', icon: 'fa fa-user',
+        content: '<span>{{patient.name}}</span>'
+      },
+      {
+        id: 'binding-invoice-total', label: 'Invoice total', icon: 'fa fa-money',
+        content: '<strong>{{invoice.total}}</strong>'
+      },
+      {
+        id: 'binding-text', label: 'Text field', icon: 'fa fa-code',
+        content: '<span>{{field.path}}</span>'
+      },
+      {
+        id: 'binding-items-table', label: 'Repeatable items table', icon: 'fa fa-table',
+        content: '<table style="width:100%; border-collapse:collapse;"><thead><tr><th style="text-align:left;">Item</th><th style="text-align:right;">Amount</th></tr></thead><tbody>{{#each items}}<tr><td>{{name}}</td><td style="text-align:right;">{{amount}}</td></tr>{{/each}}</tbody></table>'
+      }
+    ];
+    blocks.forEach(block => {
+      if (editor.BlockManager.get(block.id)) editor.BlockManager.remove(block.id);
+      editor.BlockManager.add(block.id, { ...block, category, attributes: { class: block.icon } });
+    });
+  }
+
+  /** Clinician-oriented blocks remain ordinary bindings, so the editor core stays domain-neutral. */
+  public addClinicalBindingBlocks(editor: any): void {
+    if (!editor?.BlockManager) return;
+    const category = { id: 'clinical-bindings', label: 'Healthcare Fields', open: false };
+    const blocks = [
+      { id: 'clinical-patient-banner', label: 'Patient safety banner', icon: 'fa fa-id-card', content: '<section style="border:2px solid #1d4ed8;background:#eff6ff;padding:12px 16px;margin-bottom:16px;font-family:Arial"><strong style="font-size:18px">{{patient.name}}</strong><span style="margin-left:16px">DOB: {{patient.dateOfBirth}}</span><span style="margin-left:16px">MRN: {{patient.mrn}}</span><div style="margin-top:7px;color:#b91c1c;font-weight:600">Allergies: {{patient.allergies}}</div><div style="margin-top:4px">Encounter: {{encounter.name}} · Clinician: {{clinician.name}}</div></section>' },
+      { id: 'clinical-diagnosis', label: 'Diagnosis', icon: 'fa fa-stethoscope', content: '<p><strong>Diagnosis:</strong> {{clinical.diagnosis}}</p>' },
+      { id: 'clinical-vitals', label: 'Vitals', icon: 'fa fa-heartbeat', content: '<table style="width:100%;border-collapse:collapse"><tr><th style="text-align:left">BP</th><th style="text-align:left">Pulse</th><th style="text-align:left">Temperature</th></tr><tr><td>{{observations.bloodPressure}}</td><td>{{observations.pulse}}</td><td>{{observations.temperature}}</td></tr></table>' },
+      { id: 'clinical-medications', label: 'Medication list', icon: 'fa fa-medkit', content: '<h3>Medications</h3><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Medicine</th><th style="text-align:left">Dose</th><th style="text-align:left">Frequency</th></tr></thead><tbody>{{#each medications}}<tr><td>{{name}}</td><td>{{dose}}</td><td>{{frequency}}</td></tr>{{/each}}</tbody></table>' },
+      { id: 'clinical-signature', label: 'Signature block', icon: 'fa fa-pencil-square-o', content: '<section style="margin-top:32px;border-top:1px solid #94a3b8;padding-top:10px"><strong>Signed by:</strong> {{clinician.name}}<br><span>Date/time: {{document.signedAt}}</span></section>' },
+    ];
+    blocks.forEach(block => {
+      if (editor.BlockManager.get(block.id)) editor.BlockManager.remove(block.id);
+      editor.BlockManager.add(block.id, { ...block, category, attributes: { class: block.icon } });
     });
   }
 
@@ -478,6 +524,461 @@ export class EditorBlockManagerService {
     });
   }
 
+  public addDocumentFormatBlocks(editor: any, categoryFilter: string = 'all'): void {
+    this.filterReadyTemplates(editor, categoryFilter);
+  }
+
+  public filterReadyTemplates(editor: any, categoryFilter: string = 'all'): void {
+    if (!editor || !editor.BlockManager) {
+      return;
+    }
+
+    // 1. Remove all existing template & format-specific blocks from BlockManager
+    const allManagedBlockIds = [
+      ...DOCUMENT_FORMATS.map((f) => 'template-' + f.id),
+      'inv-line-items',
+      'inv-totals-box',
+      'rep-kpi-grid',
+      'med-rx-table',
+      'cert-seal-badge',
+      'menu-dish-item',
+      'del-dispatch-table',
+      'univ-signature',
+      'univ-stamp-paid',
+      'univ-page-break',
+    ];
+
+    allManagedBlockIds.forEach((id) => {
+      if (editor.BlockManager.get(id)) {
+        editor.BlockManager.remove(id);
+      }
+    });
+
+    // Clean up any legacy categories from block manager if they existed
+    const oldCatIds = [
+      'cat-invoices',
+      'cat-reports',
+      'cat-medical',
+      'cat-certificates',
+      'cat-menu',
+      'cat-delivery',
+      'cat-universal',
+    ];
+    try {
+      const categories = editor.BlockManager.getCategories();
+      if (categories && categories.models) {
+        oldCatIds.forEach((catId) => {
+          const found = categories.models.find((c: any) => c.get('id') === catId || c.id === catId);
+          if (found && categories.remove) {
+            categories.remove(found);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Category cleanup note:', e);
+    }
+
+    // 2. Single Unified Category: Ready Templates
+    const readyCategory = {
+      id: 'doc-templates',
+      label: '📄 Ready Templates',
+      open: true,
+    };
+
+    // 3. Add only the templates related to categoryFilter
+    if (categoryFilter === 'all') {
+      DOCUMENT_FORMATS.forEach((format) => {
+        editor.BlockManager.add('template-' + format.id, {
+          id: 'template-' + format.id,
+          label: format.emoji + ' ' + format.shortName,
+          media: format.previewSvg,
+          category: readyCategory,
+          attributes: { class: format.icon || 'fa fa-file-text-o' },
+          content: format.defaultHtml,
+        });
+      });
+    } else if (categoryFilter === 'invoices') {
+      const invoiceFormats = DOCUMENT_FORMATS.filter((f) =>
+        ['invoice', 'quotation', 'receipt', 'financial_report'].includes(f.id)
+      );
+      invoiceFormats.forEach((format) => {
+        editor.BlockManager.add('template-' + format.id, {
+          id: 'template-' + format.id,
+          label: format.emoji + ' ' + format.shortName,
+          media: format.previewSvg,
+          category: readyCategory,
+          attributes: { class: format.icon || 'fa fa-file-text-o' },
+          content: format.defaultHtml,
+        });
+      });
+      editor.BlockManager.add('inv-line-items', {
+        id: 'inv-line-items',
+        label: '🧾 Invoice Items Table',
+        category: readyCategory,
+        attributes: { class: 'fa fa-table' },
+        content: this.getInvoiceTableContent(),
+      });
+      editor.BlockManager.add('inv-totals-box', {
+        id: 'inv-totals-box',
+        label: '🧮 Invoice Totals Summary',
+        category: readyCategory,
+        attributes: { class: 'fa fa-calculator' },
+        content: this.getInvoiceTotalsContent(),
+      });
+    } else if (categoryFilter === 'reports') {
+      const reportFormats = DOCUMENT_FORMATS.filter((f) =>
+        ['business_report', 'financial_report'].includes(f.id)
+      );
+      reportFormats.forEach((format) => {
+        editor.BlockManager.add('template-' + format.id, {
+          id: 'template-' + format.id,
+          label: format.emoji + ' ' + format.shortName,
+          media: format.previewSvg,
+          category: readyCategory,
+          attributes: { class: format.icon || 'fa fa-file-text-o' },
+          content: format.defaultHtml,
+        });
+      });
+      editor.BlockManager.add('rep-kpi-grid', {
+        id: 'rep-kpi-grid',
+        label: '📊 4-Card KPI Metrics Grid',
+        category: readyCategory,
+        attributes: { class: 'fa fa-th-large' },
+        content: this.getKpiGridContent(),
+      });
+    } else if (categoryFilter === 'medical') {
+      const medFormats = DOCUMENT_FORMATS.filter((f) =>
+        ['medical_report'].includes(f.id)
+      );
+      medFormats.forEach((format) => {
+        editor.BlockManager.add('template-' + format.id, {
+          id: 'template-' + format.id,
+          label: format.emoji + ' ' + format.shortName,
+          media: format.previewSvg,
+          category: readyCategory,
+          attributes: { class: format.icon || 'fa fa-file-text-o' },
+          content: format.defaultHtml,
+        });
+      });
+      editor.BlockManager.add('med-rx-table', {
+        id: 'med-rx-table',
+        label: '🏥 Rx Prescription Table',
+        category: readyCategory,
+        attributes: { class: 'fa fa-medkit' },
+        content: this.getRxTableContent(),
+      });
+    } else if (categoryFilter === 'certificates') {
+      const certFormats = DOCUMENT_FORMATS.filter((f) =>
+        ['certificate'].includes(f.id)
+      );
+      certFormats.forEach((format) => {
+        editor.BlockManager.add('template-' + format.id, {
+          id: 'template-' + format.id,
+          label: format.emoji + ' ' + format.shortName,
+          media: format.previewSvg,
+          category: readyCategory,
+          attributes: { class: format.icon || 'fa fa-file-text-o' },
+          content: format.defaultHtml,
+        });
+      });
+      editor.BlockManager.add('cert-seal-badge', {
+        id: 'cert-seal-badge',
+        label: '⭐ Gold Seal & Ribbon',
+        category: readyCategory,
+        attributes: { class: 'fa fa-certificate' },
+        content: this.getCertSealContent(),
+      });
+    } else if (categoryFilter === 'menu') {
+      const menuFormats = DOCUMENT_FORMATS.filter((f) =>
+        ['restaurant_menu'].includes(f.id)
+      );
+      menuFormats.forEach((format) => {
+        editor.BlockManager.add('template-' + format.id, {
+          id: 'template-' + format.id,
+          label: format.emoji + ' ' + format.shortName,
+          media: format.previewSvg,
+          category: readyCategory,
+          attributes: { class: format.icon || 'fa fa-file-text-o' },
+          content: format.defaultHtml,
+        });
+      });
+      editor.BlockManager.add('menu-dish-item', {
+        id: 'menu-dish-item',
+        label: '🏪 Artisanal Dish Card',
+        category: readyCategory,
+        attributes: { class: 'fa fa-cutlery' },
+        content: this.getMenuDishContent(),
+      });
+    } else if (categoryFilter === 'delivery') {
+      const delFormats = DOCUMENT_FORMATS.filter((f) =>
+        ['delivery_note'].includes(f.id)
+      );
+      delFormats.forEach((format) => {
+        editor.BlockManager.add('template-' + format.id, {
+          id: 'template-' + format.id,
+          label: format.emoji + ' ' + format.shortName,
+          media: format.previewSvg,
+          category: readyCategory,
+          attributes: { class: format.icon || 'fa fa-file-text-o' },
+          content: format.defaultHtml,
+        });
+      });
+      editor.BlockManager.add('del-dispatch-table', {
+        id: 'del-dispatch-table',
+        label: '📦 Dispatched Goods Table',
+        category: readyCategory,
+        attributes: { class: 'fa fa-truck' },
+        content: this.getDispatchTableContent(),
+      });
+    } else if (categoryFilter === 'universal') {
+      editor.BlockManager.add('univ-signature', {
+        id: 'univ-signature',
+        label: '✍️ Formal Signature Line',
+        category: readyCategory,
+        attributes: { class: 'fa fa-pencil-square-o' },
+        content: this.getSignatureContent(),
+      });
+      editor.BlockManager.add('univ-stamp-paid', {
+        id: 'univ-stamp-paid',
+        label: '🟢 Official PAID Stamp',
+        category: readyCategory,
+        attributes: { class: 'fa fa-check-circle-o' },
+        content: this.getPaidStampContent(),
+      });
+      editor.BlockManager.add('univ-page-break', {
+        id: 'univ-page-break',
+        label: '📄 Print Page Break',
+        category: readyCategory,
+        attributes: { class: 'fa fa-file-o' },
+        content: this.getPageBreakContent(),
+      });
+    } else if (categoryFilter === 'hr') {
+      const hrFormats = DOCUMENT_FORMATS.filter((f) =>
+        ['hr_offer_letter', 'business_letter'].includes(f.id)
+      );
+      hrFormats.forEach((format) => {
+        editor.BlockManager.add('template-' + format.id, {
+          id: 'template-' + format.id,
+          label: format.emoji + ' ' + format.shortName,
+          media: format.previewSvg,
+          category: readyCategory,
+          attributes: { class: format.icon || 'fa fa-file-text-o' },
+          content: format.defaultHtml,
+        });
+      });
+    } else if (categoryFilter === 'proposals') {
+      const propFormats = DOCUMENT_FORMATS.filter((f) =>
+        ['proposal'].includes(f.id)
+      );
+      propFormats.forEach((format) => {
+        editor.BlockManager.add('template-' + format.id, {
+          id: 'template-' + format.id,
+          label: format.emoji + ' ' + format.shortName,
+          media: format.previewSvg,
+          category: readyCategory,
+          attributes: { class: format.icon || 'fa fa-file-text-o' },
+          content: format.defaultHtml,
+        });
+      });
+    }
+
+    // Ensure Ready Templates category is open in the editor
+    try {
+      const categories = editor.BlockManager.getCategories();
+      if (categories && categories.get) {
+        const cat = categories.get('doc-templates');
+        if (cat) {
+          cat.set('open', true);
+        }
+      }
+    } catch (e) {
+      console.warn('Category open note:', e);
+    }
+
+    // Force re-render of blocks in GrapeJS
+    if (editor.BlockManager.render) {
+      try {
+        editor.BlockManager.render();
+      } catch (e) {
+        // silent
+      }
+    }
+  }
+
+  private getInvoiceTableContent(): string {
+    return `
+      <table style="width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 13px; font-family: sans-serif;">
+        <thead>
+          <tr style="background: #0f172a; color: #ffffff;">
+            <th style="padding: 10px 12px; text-align: left;">#</th>
+            <th style="padding: 10px 12px; text-align: left;">Item Description</th>
+            <th style="padding: 10px 12px; text-align: center;">Qty</th>
+            <th style="padding: 10px 12px; text-align: right;">Rate</th>
+            <th style="padding: 10px 12px; text-align: right;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 12px; color: #64748b;">1</td>
+            <td style="padding: 10px 12px;"><strong>Professional Services</strong></td>
+            <td style="padding: 10px 12px; text-align: center;">1</td>
+            <td style="padding: 10px 12px; text-align: right;">$1,500.00</td>
+            <td style="padding: 10px 12px; text-align: right; font-weight: 600;">$1,500.00</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+  }
+
+  private getInvoiceTotalsContent(): string {
+    return `
+      <div style="max-width: 280px; margin-left: auto; font-size: 13px; font-family: sans-serif; padding: 10px 0;">
+        <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #64748b;">
+          <span>Subtotal:</span><span>$1,500.00</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #64748b;">
+          <span>Tax (10%):</span><span>$150.00</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-top: 2px solid #0f172a; font-weight: 800; font-size: 15px; color: #2563eb;">
+          <span>Total Due:</span><span>$1,650.00</span>
+        </div>
+      </div>
+    `;
+  }
+
+  private getKpiGridContent(): string {
+    return `
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 15px 0; font-family: sans-serif;">
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 6px; text-align: center;">
+          <span style="font-size: 11px; color: #166534; font-weight: 700; text-transform: uppercase;">Revenue</span>
+          <h3 style="margin: 4px 0; font-size: 18px; color: #15803d;">$1.2M</h3>
+          <span style="font-size: 11px; color: #16a34a;">+12% vs Target</span>
+        </div>
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px; border-radius: 6px; text-align: center;">
+          <span style="font-size: 11px; color: #1e40af; font-weight: 700; text-transform: uppercase;">New Users</span>
+          <h3 style="margin: 4px 0; font-size: 18px; color: #1d4ed8;">4,850</h3>
+          <span style="font-size: 11px; color: #2563eb;">+28% Growth</span>
+        </div>
+        <div style="background: #fefce8; border: 1px solid #fef08a; padding: 12px; border-radius: 6px; text-align: center;">
+          <span style="font-size: 11px; color: #854d0e; font-weight: 700; text-transform: uppercase;">Retention</span>
+          <h3 style="margin: 4px 0; font-size: 18px; color: #a16207;">95.2%</h3>
+          <span style="font-size: 11px; color: #ca8a04;">Optimal</span>
+        </div>
+        <div style="background: #faf5ff; border: 1px solid #e9d5ff; padding: 12px; border-radius: 6px; text-align: center;">
+          <span style="font-size: 11px; color: #6b21a8; font-weight: 700; text-transform: uppercase;">NPS</span>
+          <h3 style="margin: 4px 0; font-size: 18px; color: #7e22ce;">+72</h3>
+          <span style="font-size: 11px; color: #9333ea;">Top Tier</span>
+        </div>
+      </div>
+    `;
+  }
+
+  private getRxTableContent(): string {
+    return `
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; margin: 15px 0; font-family: sans-serif;">
+        <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #0284c7; font-weight: 800;">Rx - PRESCRIPTION</h4>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+          <thead>
+            <tr style="border-bottom: 1px solid #cbd5e1; color: #64748b;">
+              <th style="padding: 6px 0; text-align: left;">Medication</th>
+              <th style="padding: 6px 0; text-align: center;">Dosage & Freq</th>
+              <th style="padding: 6px 0; text-align: center;">Duration</th>
+              <th style="padding: 6px 0; text-align: left;">Special Advice</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; font-weight: 600;">Paracetamol 650mg</td>
+              <td style="padding: 8px 0; text-align: center;">1 SOS</td>
+              <td style="padding: 8px 0; text-align: center;">3 Days</td>
+              <td style="padding: 8px 0;">Take after food</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  private getCertSealContent(): string {
+    return `
+      <div style="text-align: center; margin: 20px auto;">
+        <div style="display: inline-flex; width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #b45309); align-items: center; justify-content: center; color: #ffffff; font-size: 28px; box-shadow: 0 4px 12px rgba(180, 83, 9, 0.35);">
+          ★
+        </div>
+        <div style="font-family: serif; font-weight: 700; font-size: 11px; color: #92400e; margin-top: 6px; letter-spacing: 1px; text-transform: uppercase;">
+          OFFICIAL DISTINCTION
+        </div>
+      </div>
+    `;
+  }
+
+  private getMenuDishContent(): string {
+    return `
+      <div style="margin: 12px 0; font-family: 'Georgia', serif;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <strong style="font-size: 15px; color: #1c1917;">Truffle Risotto ai Funghi</strong>
+          <span style="font-weight: 700; color: #991b1b; font-size: 14px;">$26.00</span>
+        </div>
+        <p style="margin: 3px 0 4px 0; font-size: 12px; color: #78716c; font-style: italic; line-height: 1.4;">
+          Carnaroli rice, wild porcini mushrooms, Parmigiano-Reggiano foam, micro parsley.
+        </p>
+        <span style="font-family: sans-serif; font-size: 10px; background: #dcfce7; color: #15803d; padding: 1px 6px; border-radius: 4px;">🌱 VEGETARIAN</span>
+      </div>
+    `;
+  }
+
+  private getDispatchTableContent(): string {
+    return `
+      <table style="width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 13px; font-family: sans-serif;">
+        <thead>
+          <tr style="background: #ea580c; color: #ffffff;">
+            <th style="padding: 8px 10px; text-align: left;">SKU / Code</th>
+            <th style="padding: 8px 10px; text-align: left;">Description</th>
+            <th style="padding: 8px 10px; text-align: center;">Ordered</th>
+            <th style="padding: 8px 10px; text-align: center;">Shipped</th>
+            <th style="padding: 8px 10px; text-align: center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 8px 10px; font-family: monospace;">SKU-4910</td>
+            <td style="padding: 8px 10px;">Industrial Motor Assembly</td>
+            <td style="padding: 8px 10px; text-align: center;">2</td>
+            <td style="padding: 8px 10px; text-align: center; font-weight: 700; color: #15803d;">2 Units</td>
+            <td style="padding: 8px 10px; text-align: center;"><span style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 8px; font-size: 11px;">VERIFIED</span></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+  }
+
+  private getSignatureContent(): string {
+    return `
+      <div style="display: inline-block; min-width: 200px; padding: 15px 0; font-family: sans-serif; font-size: 12px;">
+        <div style="border-bottom: 1px solid #475569; height: 35px; margin-bottom: 5px;"></div>
+        <strong style="color: #0f172a; display: block;">Authorized Signatory</strong>
+        <span style="color: #64748b; font-size: 11px;">Name & Official Designation</span>
+        <span style="color: #94a3b8; font-size: 10px; display: block;">Date: ____________________</span>
+      </div>
+    `;
+  }
+
+  private getPaidStampContent(): string {
+    return `
+      <div style="display: inline-block; border: 3px double #16a34a; color: #16a34a; padding: 6px 18px; border-radius: 6px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; font-family: sans-serif; font-size: 14px; transform: rotate(-5deg);">
+        PAID IN FULL
+      </div>
+    `;
+  }
+
+  private getPageBreakContent(): string {
+    return `
+      <div style="page-break-after: always; border-top: 2px dashed #94a3b8; margin: 30px 0; padding: 8px 0; text-align: center; color: #94a3b8; font-size: 11px; font-family: sans-serif;">
+        --- Print Page Break (A4 Next Page) ---
+      </div>
+    `;
+  }
+
   public getFormPreviewSvg(type: 'intake' | 'vitals' | 'table' | 'image' | 'generic', title = 'Custom Form'): string {
     switch (type) {
       case 'intake':
@@ -568,6 +1069,35 @@ export class EditorBlockManagerService {
   }
 
   addDemographicItemsToBlock(editor: any): void {
+    // Remove legacy 'custom-demographics' category if it exists in BlockManager
+    try {
+      if (editor?.BlockManager?.getCategories) {
+        const cat = editor.BlockManager.getCategories().get('custom-demographics');
+        if (cat) {
+          editor.BlockManager.getCategories().remove('custom-demographics');
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Add + Add Custom Field action block at the top of Demographics
+    editor.BlockManager.add('NewCustomDemographicField', {
+      id: 'NewCustomDemographicField',
+      label: '+ Add Field',
+      category: 'Demographics',
+      attributes: {
+        class: 'fa fa-plus-circle',
+        title: 'Click or drag to create a custom demographic field',
+      },
+      content: `
+        <div class="demo-field-group demo_CustomField" style="margin-bottom: 12px; font-family: inherit;">
+          <label style="font-weight: 600; font-size: 12px; display: block; margin-bottom: 4px; color: #475569;">Custom Field</label>
+          <input type="text" placeholder="Enter value..." style="width: 100%; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;" />
+        </div>
+      `,
+    });
+
     editor.BlockManager.add(
       'PatientRegNo',
       this.getLabelBlock('Reg-No', 'Demographics', 'fa fa-registered')
@@ -637,7 +1167,7 @@ export class EditorBlockManagerService {
       this.getLabelBlock('signature', 'Demographics', 'fa fa-pencil')
     );
 
-    // Load any user-created custom demographics from storage
+    // Load any user-created custom demographics from storage into Demographics category
     try {
       const savedCustomDemo = localStorage.getItem('form_builder_custom_demographics');
       if (savedCustomDemo) {
@@ -680,7 +1210,7 @@ export class EditorBlockManagerService {
     editor.BlockManager.add(blockId, {
       id: blockId,
       label: item.label,
-      category: { id: 'custom-demographics', label: 'Custom Demographics', open: true },
+      category: 'Demographics',
       attributes: { class: iconClass },
       content: htmlContent,
     });
@@ -698,6 +1228,21 @@ export class EditorBlockManagerService {
       } catch (e) {
         console.warn('Error saving custom demographic to storage:', e);
       }
+    }
+  }
+
+  public removeCustomDemographicItem(editor: any, blockId: string): void {
+    if (!editor || !editor.BlockManager) return;
+    editor.BlockManager.remove(blockId);
+    try {
+      const existing = localStorage.getItem('form_builder_custom_demographics');
+      if (existing) {
+        const list = JSON.parse(existing) || [];
+        const filtered = list.filter((d: any) => ('Demo_' + (d.key || d.label).replace(/[^a-zA-Z0-9_]/g, '')) !== blockId);
+        localStorage.setItem('form_builder_custom_demographics', JSON.stringify(filtered));
+      }
+    } catch (e) {
+      console.warn('Error removing custom demographic from storage:', e);
     }
   }
 

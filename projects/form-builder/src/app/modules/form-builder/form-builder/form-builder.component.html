@@ -10,100 +10,181 @@
 
 <!-- Modern Studio Header Navbar -->
 <header class="fb-header-navbar">
-  <div class="fb-header-left">
-    <div class="fb-brand-icon">
-      <i class="pi pi-pencil"></i>
-    </div>
-    <div class="fb-brand-info">
-      <div class="fb-title-row">
-        <h1 class="fb-title">Form Builder</h1>
-        <span class="fb-source-badge" [ngClass]="{
-            'badge-form': source === 'FORM',
-            'badge-emr': source === 'EMR-COMPONENT',
-            'badge-layout': source === 'CUSTOM-LAYOUT'
-          }">
-          <i class="pi" [ngClass]="{
-              'pi-file': source === 'FORM',
-              'pi-id-card': source === 'EMR-COMPONENT',
-              'pi-th-large': source === 'CUSTOM-LAYOUT'
-            }"></i>
-          {{
-          source === "FORM"
-          ? "Standard Form"
-          : source === "EMR-COMPONENT"
-          ? "EMR Component"
-          : "Custom Layout"
-          }}
-        </span>
+  <!-- Top Row: Studio Branding & Status & Language Switcher -->
+  <div class="fb-header-top-row">
+    <div class="fb-brand-left">
+      <div class="fb-brand-icon">
+        <i class="pi pi-file-edit"></i>
       </div>
-      <p class="fb-subtitle">Design and configure interactive clinical forms</p>
+      <div class="fb-brand-info">
+        <div class="fb-title-row">
+          <h1 class="fb-title">{{ 'STUDIO.TITLE' | translate }}</h1>
+          <span class="fb-source-badge" [ngClass]="{
+              'badge-form': source === 'FORM',
+              'badge-emr': source === 'EMR-COMPONENT',
+              'badge-layout': source === 'CUSTOM-LAYOUT'
+            }">
+            <i class="pi" [ngClass]="{
+                'pi-file': source === 'FORM',
+                'pi-id-card': source === 'EMR-COMPONENT',
+                'pi-th-large': source === 'CUSTOM-LAYOUT'
+              }"></i>
+            {{
+              activeFormatName !== 'Multi-Document Studio'
+                ? activeFormatName
+                : source === "FORM"
+                ? ('STUDIO.SOURCE_MULTI_DOC' | translate)
+                : source === "EMR-COMPONENT"
+                ? ('STUDIO.SOURCE_EMR' | translate)
+                : ('STUDIO.SOURCE_CUSTOM_LAYOUT' | translate)
+            }}
+          </span>
+        </div>
+        <p class="fb-subtitle">{{ 'STUDIO.SUBTITLE' | translate }}</p>
+      </div>
+    </div>
+
+    <!-- Center: AI Search / Assistant Bar in Header Section -->
+    <div class="fb-header-center">
+      <div class="fb-ai-searchbar" [class.focused]="isAiFocused">
+        <div class="ai-sparkle-badge">
+          <i class="pi pi-bolt"></i>
+        </div>
+        <input type="text" class="ai-search-input" [placeholder]="'STUDIO.AI_SEARCH_PLACEHOLDER' | translate"
+          [(ngModel)]="aiSearchQuery" (focus)="isAiFocused = true" (blur)="isAiFocused = false"
+          (keydown.enter)="onAISearch()" />
+        <div class="ai-input-actions">
+          <button *ngIf="aiSearchQuery" type="button" class="ai-action-btn ai-clear-btn" (click)="aiSearchQuery = ''"
+            [pTooltip]="'STUDIO.AI_CLEAR' | translate" tooltipPosition="bottom">
+            <i class="pi pi-times"></i>
+          </button>
+          <span class="ai-shortcut-badge" *ngIf="!aiSearchQuery">AI</span>
+          <button type="button" class="ai-action-btn ai-submit-btn" [disabled]="!aiSearchQuery" (click)="onAISearch()"
+            [pTooltip]="'STUDIO.AI_ASK' | translate" tooltipPosition="bottom">
+            <i class="pi pi-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Side: Language Switcher -->
+    <div class="fb-brand-right">
+      <div class="fb-lang-switcher">
+        <button type="button" class="fb-lang-btn" [class.active]="currentLang === 'English'"
+          (click)="switchLanguage('English')" pTooltip="English" tooltipPosition="bottom">
+          <span class="lang-flag">🇬🇧</span>
+          <span class="lang-text">EN</span>
+        </button>
+        <button type="button" class="fb-lang-btn" [class.active]="currentLang === 'German'"
+          (click)="switchLanguage('German')" pTooltip="Deutsch" tooltipPosition="bottom">
+          <span class="lang-flag">🇩🇪</span>
+          <span class="lang-text">DE</span>
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- AI Search / Assistant Bar -->
-  <div class="fb-header-center">
-    <div class="fb-ai-searchbar" [class.focused]="isAiFocused">
-      <div class="ai-sparkle-badge">
-        <i class="pi pi-bolt"></i>
-      </div>
-      <input type="text" class="ai-search-input" placeholder="Ask AI to design fields, templates, or assist..."
-        [(ngModel)]="aiSearchQuery" (focus)="isAiFocused = true" (blur)="isAiFocused = false"
-        (keydown.enter)="onAISearch()" />
-      <div class="ai-input-actions">
-        <button *ngIf="aiSearchQuery" type="button" class="ai-action-btn ai-clear-btn" (click)="aiSearchQuery = ''"
-          pTooltip="Clear" tooltipPosition="bottom">
-          <i class="pi pi-times"></i>
-        </button>
-        <span class="ai-shortcut-badge" *ngIf="!aiSearchQuery">AI</span>
-        <button type="button" class="ai-action-btn ai-submit-btn" [disabled]="!aiSearchQuery" (click)="onAISearch()"
-          pTooltip="Ask AI" tooltipPosition="bottom">
-          <i class="pi pi-arrow-right"></i>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div class="fb-header-actions">
-    <!-- Primary & Secondary Save Actions -->
+  <!-- Bottom Toolbar Row: All other components in the same line -->
+  <div class="fb-header-toolbar-row">
+    <!-- Template Gallery & Primary Action Group -->
     <div class="fb-action-group">
+      <button pButton class="fb-btn fb-btn-templates" (click)="openTemplateGallery()" icon="pi pi-th-large"
+        iconPos="left" [label]="'STUDIO.TEMPLATES_BTN' | translate" pRipple [pTooltip]="'STUDIO.TEMPLATES_TOOLTIP' | translate"
+        tooltipPosition="bottom"></button>
+
+      <!-- Category Filter Dropdown -->
+      <div class="fb-category-filter">
+        <p-dropdown [options]="templateCategoryOptions" [(ngModel)]="selectedTemplateCategory"
+          (onChange)="onCategoryFilterChange($event.value)"
+          optionLabel="label" optionValue="value"
+          [appendTo]="'body'"
+          [autoZIndex]="true"
+          [baseZIndex]="10000"
+          panelStyleClass="fb-cat-dropdown-panel"
+          styleClass="fb-cat-select" [style]="{ 'min-width': '205px' }">
+          <ng-template let-item pTemplate="selectedItem">
+            <div class="fb-cat-selected-item">
+              <i [class]="item.icon" *ngIf="item.icon" class="fb-cat-icon"></i>
+              <span class="fb-cat-text">{{ item.label }}</span>
+            </div>
+          </ng-template>
+          <ng-template let-item pTemplate="item">
+            <div class="fb-cat-option-item">
+              <i [class]="item.icon" *ngIf="item.icon" class="fb-cat-option-icon"></i>
+              <span>{{ item.label }}</span>
+            </div>
+          </ng-template>
+        </p-dropdown>
+      </div>
+
+      <button pButton class="fb-btn fb-btn-secondary" (click)="openTemplateManager()" icon="pi pi-folder-open"
+        iconPos="left" label="My Templates" pRipple pTooltip="Create, draft, publish, and reuse templates"
+        tooltipPosition="bottom"></button>
+
       <button pButton id="saveForm" class="fb-btn fb-btn-primary" [loading]="isLoad"
         (click)="source === 'FORM' ? saveForm() : saveCustomLayout()" type="button" pRipple icon="pi pi-save"
         iconPos="left" [label]="
           source === 'FORM'
-            ? 'Save Form'
+            ? ('STUDIO.SAVE_DOC' | translate)
             : source === 'EMR-COMPONENT'
-            ? 'Save / Update Component'
-            : 'Update Layout'
+            ? ('STUDIO.SAVE_COMP' | translate)
+            : ('STUDIO.UPDATE_LAYOUT' | translate)
         "></button>
 
       <button pButton class="fb-btn fb-btn-secondary" (click)="saveAsCustomLayout()"
-        *ngIf="source === 'FORM' || source === 'CUSTOM-LAYOUT'" icon="pi pi-copy" iconPos="left" label="Save as Layout"
+        *ngIf="source === 'FORM' || source === 'CUSTOM-LAYOUT'" icon="pi pi-copy" iconPos="left" [label]="'STUDIO.SAVE_AS_LAYOUT' | translate"
         pRipple></button>
 
       <button pButton class="fb-btn fb-btn-demographic" (click)="openDemographicDialog()" icon="pi pi-user-plus"
-        iconPos="left" label="Add Demographic" pRipple pTooltip="Create and add custom demographic field"
+        iconPos="left" [label]="'STUDIO.ADD_FIELD' | translate" pRipple [pTooltip]="'STUDIO.ADD_FIELD_TOOLTIP' | translate"
         tooltipPosition="bottom"></button>
+
+      <button pButton class="fb-btn fb-btn-secondary" (click)="openPatientContext()" icon="pi pi-id-card"
+        iconPos="left" label="Patient context" pRipple pTooltip="Set patient, encounter, allergy, and clinician context"></button>
+
+      <button pButton class="fb-btn fb-btn-secondary" (click)="reviewClinicalDocument()" icon="pi pi-check-circle"
+        iconPos="left" label="Review" pRipple [disabled]="clinicalDocumentStatus === 'signed'"></button>
+
+      <button pButton class="fb-btn fb-btn-primary" (click)="signClinicalDocument()" icon="pi pi-pencil"
+        iconPos="left" label="Sign" pRipple [disabled]="clinicalDocumentStatus === 'signed'"></button>
     </div>
 
     <div class="fb-nav-divider"></div>
 
-    <!-- Utility Quick Actions -->
+    <!-- Canvas Page Sizing & Utility Quick Actions -->
     <div class="fb-utility-group">
-      <button pButton pRipple icon="pi pi-upload" class="fb-icon-btn p-button-rounded p-button-text"
-        pTooltip="Import HTML with Scripts" tooltipPosition="bottom" (click)="openDialog()"></button>
+      <div class="fb-page-mode-group">
+        <button pButton type="button" class="p-button-sm p-button-text fb-mode-btn"
+          [class.active]="canvasLayoutMode === 'free'" (click)="setCanvasLayout('free')"
+          [pTooltip]="'STUDIO.MODE_FREE' | translate" tooltipPosition="bottom" icon="pi pi-arrows-alt"></button>
+        <button pButton type="button" class="p-button-sm p-button-text fb-mode-btn"
+          [class.active]="canvasLayoutMode === 'a4-portrait'" (click)="setCanvasLayout('a4-portrait')"
+          [pTooltip]="'STUDIO.MODE_A4_PORTRAIT' | translate" tooltipPosition="bottom" icon="pi pi-file"></button>
+        <button pButton type="button" class="p-button-sm p-button-text fb-mode-btn"
+          [class.active]="canvasLayoutMode === 'a4-landscape'" (click)="setCanvasLayout('a4-landscape')"
+          [pTooltip]="'STUDIO.MODE_A4_LANDSCAPE' | translate" tooltipPosition="bottom" icon="pi pi-window-maximize"></button>
+        <button pButton type="button" class="p-button-sm p-button-text fb-mode-btn"
+          [class.active]="canvasLayoutMode === 'receipt'" (click)="setCanvasLayout('receipt')"
+          [pTooltip]="'STUDIO.MODE_RECEIPT' | translate" tooltipPosition="bottom" icon="pi pi-ticket"></button>
+      </div>
+
+      <div class="fb-nav-divider"></div>
 
       <button pButton pRipple icon="pi pi-eye" class="fb-icon-btn p-button-rounded p-button-text"
-        pTooltip="Preview Form" tooltipPosition="bottom" (click)="viewForm()"></button>
+        pTooltip="Preview with patient/sample data" tooltipPosition="bottom" (click)="openDataPreview()"></button>
+
+      <button pButton pRipple icon="pi pi-history" class="fb-icon-btn p-button-rounded p-button-text"
+        pTooltip="Local activity trail" tooltipPosition="bottom" (click)="openAuditTrail()"></button>
 
       <button pButton type="button" pRipple icon="pi pi-question-circle"
-        class="fb-icon-btn p-button-rounded p-button-text" pTooltip="GrapesJS Documentation" tooltipPosition="bottom"
+        class="fb-icon-btn p-button-rounded p-button-text" [pTooltip]="'STUDIO.HELP_DOCS' | translate" tooltipPosition="bottom"
         (click)="editorHelp()" *ngIf="source === 'FORM'"></button>
     </div>
   </div>
 </header>
 
 <!-- Editor Container -->
-<div class="fb-editor-wrapper">
+<div class="fb-editor-wrapper" [ngClass]="'canvas-mode-' + canvasLayoutMode">
   <div id="gjs" class="gjs-container"></div>
 </div>
 
@@ -133,6 +214,83 @@
       </div>
     </div>
   </div>
+</p-dialog>
+
+<!-- Clinician context: local prototype only; production must use an authenticated EHR context. -->
+<p-dialog [(visible)]="pDialogPatientContext" header="Patient & Encounter Context" [modal]="true"
+  [style]="{ width: '54vw', maxWidth: '720px' }" [breakpoints]="{ '800px': '96vw' }" styleClass="p-fluid">
+  <div class="surface-100 border-round p-3 mb-3 text-sm text-700"><i class="pi pi-shield mr-2"></i>This prototype keeps this context only in the current browser. Do not use real patient data until secure server storage, access control, and audit logging are connected.</div>
+  <form [formGroup]="patientContextForm" class="grid">
+    <div class="col-12 md:col-6 field"><label>Patient name *</label><input pInputText formControlName="name" autocomplete="off" /></div>
+    <div class="col-12 md:col-6 field"><label>MRN / patient identifier *</label><input pInputText formControlName="mrn" autocomplete="off" /></div>
+    <div class="col-12 md:col-6 field"><label>Date of birth</label><input pInputText formControlName="dateOfBirth" placeholder="YYYY-MM-DD" /></div>
+    <div class="col-12 md:col-6 field"><label>Encounter</label><input pInputText formControlName="encounter" placeholder="e.g. Outpatient consultation" /></div>
+    <div class="col-12 field"><label>Allergies</label><input pInputText formControlName="allergies" placeholder="No known allergies / list allergens" /></div>
+    <div class="col-12 field"><label>Responsible clinician *</label><input pInputText formControlName="clinician" /></div>
+  </form>
+  <ng-template pTemplate="footer"><button pButton type="button" class="p-button-text" label="Cancel" (click)="pDialogPatientContext = false"></button><button pButton type="button" label="Save context" icon="pi pi-save" (click)="savePatientContext()"></button></ng-template>
+</p-dialog>
+
+<p-dialog [(visible)]="pDialogAudit" header="Local Activity Trail" [modal]="true" [style]="{ width: '52vw', maxWidth: '700px' }" [breakpoints]="{ '800px': '96vw' }">
+  <p class="text-600 text-sm">This is a local demonstration only, not an immutable production audit log.</p>
+  <div *ngIf="clinicalAudit.length; else noAudit" class="flex flex-column gap-3">
+    <div *ngFor="let event of clinicalAudit" class="border-bottom-1 surface-border pb-2">
+      <div class="font-semibold">{{ event.action | titlecase }} · {{ event.actor }}</div>
+      <div class="text-sm text-600">{{ event.detail }}</div>
+      <div class="text-xs text-500 mt-1">{{ event.at | date:'medium' }}</div>
+    </div>
+  </div>
+  <ng-template #noAudit><div class="text-500 p-3">No local activity recorded yet.</div></ng-template>
+</p-dialog>
+
+<!-- Generic template library -->
+<p-dialog [(visible)]="pDialogTemplateManager" header="My Templates" [modal]="true"
+  [style]="{ width: '70vw', maxWidth: '960px' }" [breakpoints]="{ '800px': '96vw' }" styleClass="p-fluid">
+  <div class="flex justify-content-between align-items-center mb-3">
+    <span class="text-600">Generic templates are stored locally in this browser until a backend repository is connected.</span>
+    <button pButton type="button" label="Create template" icon="pi pi-plus" (click)="createGenericTemplate()"></button>
+  </div>
+  <div class="grid" *ngIf="genericTemplates.length; else emptyTemplateLibrary">
+    <div class="col-12 md:col-6" *ngFor="let template of genericTemplates">
+      <div class="surface-card border-1 surface-border border-round p-3 h-full">
+        <div class="flex justify-content-between align-items-start">
+          <div>
+            <div class="font-semibold text-lg">{{ template.name }}</div>
+            <div class="text-500 text-sm mt-1">{{ template.category }} · v{{ template.version }}</div>
+          </div>
+          <span class="text-xs border-round px-2 py-1" [ngClass]="template.status === 'published' ? 'bg-green-100 text-green-700' : 'surface-200 text-700'">{{ template.status }}</span>
+        </div>
+        <div class="flex gap-2 mt-3 flex-wrap">
+          <button pButton type="button" class="p-button-sm" label="Edit" icon="pi pi-pencil" (click)="loadGenericTemplate(template); editGenericTemplate(template)"></button>
+          <button pButton type="button" class="p-button-sm p-button-outlined" label="Preview" icon="pi pi-eye" (click)="previewGenericTemplate(template)"></button>
+          <button pButton type="button" class="p-button-sm p-button-text" label="Duplicate" icon="pi pi-copy" (click)="duplicateGenericTemplate(template)"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ng-template #emptyTemplateLibrary><div class="text-center text-500 p-5">No saved templates yet.</div></ng-template>
+</p-dialog>
+
+<!-- Generic template metadata and schema editor -->
+<p-dialog [(visible)]="pDialogTemplateDetails" [header]="activeGenericTemplate ? 'Edit Template' : 'Create Template'" [modal]="true"
+  [style]="{ width: '62vw', maxWidth: '820px' }" [breakpoints]="{ '800px': '96vw' }" styleClass="p-fluid">
+  <div class="grid">
+    <div class="col-12 md:col-7 field"><label>Template name</label><input pInputText [(ngModel)]="templateName" placeholder="e.g. Patient discharge summary" /></div>
+    <div class="col-12 md:col-5 field"><label>Domain / category</label><input pInputText [(ngModel)]="templateCategory" placeholder="healthcare" /></div>
+    <div class="col-12 field"><label>Status</label><p-selectButton [options]="[{label: 'Draft', value: 'draft'}, {label: 'Published', value: 'published'}]" [(ngModel)]="templateStatus" optionLabel="label" optionValue="value"></p-selectButton></div>
+    <div class="col-12 field"><label>JSON data schema</label><textarea pInputTextarea rows="9" [(ngModel)]="templateSchemaText" spellcheck="false"></textarea></div>
+    <div class="col-12 field"><label>Sample JSON data</label><textarea pInputTextarea rows="9" [(ngModel)]="previewDataText" spellcheck="false"></textarea></div>
+    <div class="col-12 text-red-500" *ngIf="templateError">{{ templateError }}</div>
+  </div>
+  <ng-template pTemplate="footer"><button pButton type="button" label="Cancel" class="p-button-text" (click)="pDialogTemplateDetails = false"></button><button pButton type="button" [label]="templateStatus === 'published' ? 'Publish' : 'Save draft'" icon="pi pi-save" (click)="saveGenericTemplate()"></button></ng-template>
+</p-dialog>
+
+<!-- Data-powered preview input -->
+<p-dialog [(visible)]="pDialogDataPreview" header="Preview with Sample JSON" [modal]="true" [style]="{ width: '58vw', maxWidth: '760px' }" [breakpoints]="{ '800px': '96vw' }" styleClass="p-fluid">
+  <p class="mt-0 text-600">Bindings such as <code>{{ '{{patient.name}}' }}</code> and <code>{{ '{{#each items}}' }}</code> are rendered before preview.</p>
+  <textarea pInputTextarea rows="16" [(ngModel)]="previewDataText" spellcheck="false"></textarea>
+  <div class="text-red-500 mt-2" *ngIf="templateError">{{ templateError }}</div>
+  <ng-template pTemplate="footer"><button pButton type="button" label="Preview" icon="pi pi-eye" (click)="previewWithSampleData()"></button></ng-template>
 </p-dialog>
 
 
@@ -256,7 +414,7 @@
 </p-dialog>
 
 <!-- Custom Demographic Field Dialog -->
-<p-dialog [(visible)]="pDialogDemographic" header="Create Custom Demographic Field" [modal]="true"
+<p-dialog [(visible)]="pDialogDemographic" [header]="'DEMO.MODAL_TITLE' | translate" [modal]="true"
   [breakpoints]="{ '960px': '75vw', '640px': '95vw' }" [style]="{ width: '38vw', minWidth: '380px' }"
   [responsive]="true" [draggable]="false" [resizable]="false" styleClass="p-fluid demographic-dialog">
   <form [formGroup]="demographicForm" (ngSubmit)="saveDemographicField()">
@@ -264,7 +422,7 @@
       <!-- Label -->
       <div class="col-12 field mb-3">
         <label for="demoLabel" class="font-semibold text-sm block mb-1">
-          Field Display Label <span class="text-red-500">*</span>
+          {{ 'DEMO.FIELD_LABEL' | translate }} <span class="text-red-500">*</span>
         </label>
         <input id="demoLabel" type="text" pInputText formControlName="label"
           placeholder="e.g. Emergency Contact, Insurance ID" (input)="onDemographicLabelInput()" autofocus />
@@ -277,7 +435,7 @@
       <!-- Key -->
       <div class="col-12 field mb-3">
         <label for="demoKey" class="font-semibold text-sm block mb-1">
-          Identifier / Field Key
+          {{ 'DEMO.FIELD_KEY' | translate }}
         </label>
         <input id="demoKey" type="text" pInputText formControlName="key" placeholder="e.g. PatientEmergencyContact" />
         <small class="text-500 block mt-1 text-xs">
@@ -288,7 +446,7 @@
       <!-- Control Type -->
       <div class="col-12 md:col-6 field mb-3">
         <label for="demoType" class="font-semibold text-sm block mb-1">
-          Input Control Type <span class="text-red-500">*</span>
+          {{ 'DEMO.FIELD_TYPE' | translate }} <span class="text-red-500">*</span>
         </label>
         <p-dropdown id="demoType" [options]="demographicTypes" formControlName="type" optionLabel="label"
           optionValue="value" placeholder="Select Type"></p-dropdown>
@@ -297,7 +455,7 @@
       <!-- Icon -->
       <div class="col-12 md:col-6 field mb-3">
         <label for="demoIcon" class="font-semibold text-sm block mb-1">
-          Category Icon
+          {{ 'DEMO.CATEGORY_ICON' | translate }}
         </label>
         <p-dropdown id="demoIcon" [options]="demographicIcons" formControlName="icon" optionLabel="label"
           optionValue="value" placeholder="Select Icon"></p-dropdown>
@@ -306,7 +464,7 @@
       <!-- Placeholder -->
       <div class="col-12 field mb-3" *ngIf="demographicForm.get('type')?.value !== 'label'">
         <label for="demoPlaceholder" class="font-semibold text-sm block mb-1">
-          Input Placeholder (Optional)
+          {{ 'DEMO.PLACEHOLDER' | translate }}
         </label>
         <input id="demoPlaceholder" type="text" pInputText formControlName="placeholder"
           placeholder="e.g. Enter contact number..." />
@@ -314,14 +472,14 @@
 
       <!-- Live Preview -->
       <div class="col-12 mb-3">
-        <label class="font-semibold text-sm block mb-1 text-600">Preview:</label>
+        <label class="font-semibold text-sm block mb-1 text-600">{{ 'DEMO.PREVIEW' | translate }}:</label>
         <div class="p-3 border-round border-1 surface-border surface-50 text-sm">
           <div class="flex align-items-center gap-2 mb-2 text-primary font-semibold">
             <i [class]="demographicForm.get('icon')?.value || 'fa fa-user'"></i>
             <span>Block: {{ demographicForm.get('label')?.value || 'Custom Field' }}</span>
           </div>
           <div class="text-xs text-500">
-            Will be added to the <strong>Custom Demographics</strong> category in GrapesJS.
+            {{ 'DEMO.WILL_BE_ADDED' | translate }}
           </div>
         </div>
       </div>
@@ -329,10 +487,78 @@
 
     <!-- Actions -->
     <div class="flex justify-content-end gap-2 mt-4 pt-2 border-top-1 surface-border">
-      <button pButton pRipple type="button" label="Cancel" class="p-button-text p-button-secondary"
+      <button pButton pRipple type="button" [label]="'DEMO.CANCEL' | translate" class="p-button-text p-button-secondary"
         (click)="pDialogDemographic = false"></button>
-      <button pButton pRipple type="submit" label="Add to Custom Demographics" icon="pi pi-check" class="p-button-success"
+      <button pButton pRipple type="submit" [label]="'DEMO.ADD_BTN' | translate" icon="pi pi-check" class="p-button-success"
         [disabled]="demographicForm.invalid"></button>
     </div>
   </form>
+</p-dialog>
+
+<!-- Template Gallery Dialog (12 Document Formats) -->
+<p-dialog [(visible)]="pDialogTemplateGallery" [header]="'GALLERY.TITLE' | translate"
+  [modal]="true" [breakpoints]="{ '1200px': '85vw', '960px': '92vw', '640px': '98vw' }"
+  [style]="{ width: '78vw', maxWidth: '1280px' }" [responsive]="true" [draggable]="false" [resizable]="false"
+  styleClass="p-fluid doc-templates-dialog">
+  <div class="gallery-container">
+    <!-- Search & Category Filters -->
+    <div class="gallery-toolbar">
+      <div class="gallery-search">
+        <span class="p-input-icon-left w-full">
+          <i class="pi pi-search"></i>
+          <input type="text" pInputText [placeholder]="'GALLERY.SEARCH_PLACEHOLDER' | translate"
+            [(ngModel)]="templateSearchQuery" (input)="filterTemplates()" />
+        </span>
+      </div>
+      <div class="gallery-categories">
+        <button *ngFor="let cat of documentCategories" type="button" class="cat-pill-btn"
+          [class.active]="selectedDocumentCategory === cat.id" (click)="selectCategory(cat.id)">
+          <i [class]="cat.icon"></i>
+          <span>{{ cat.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Format Cards Grid -->
+    <div class="formats-grid">
+      <div *ngFor="let fmt of filteredDocumentFormats" class="format-card">
+        <div class="format-card-header">
+          <div class="format-title-wrap">
+            <span class="format-emoji">{{ fmt.emoji }}</span>
+            <div>
+              <h3 class="format-name">{{ fmt.name }}</h3>
+              <span class="format-cat-badge">{{ fmt.categoryLabel }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview Thumbnail SVG -->
+        <div class="format-preview-thumb" [innerHTML]="sanitizer.bypassSecurityTrustHtml(fmt.previewSvg)"></div>
+
+        <p class="format-desc">{{ fmt.description }}</p>
+
+        <!-- Feature Tags -->
+        <div class="format-features">
+          <span *ngFor="let feat of fmt.features" class="feat-tag">{{ feat }}</span>
+        </div>
+
+        <!-- Actions -->
+        <div class="format-card-actions">
+          <button pButton pRipple type="button" icon="pi pi-check-circle" label="Use Template"
+            class="p-button-sm p-button-primary" (click)="loadDocumentTemplate(fmt, 'replace')"
+            pTooltip="Load this template onto canvas" tooltipPosition="top"></button>
+          <button pButton pRipple type="button" icon="pi pi-plus" label="Append"
+            class="p-button-sm p-button-outlined p-button-secondary" (click)="loadDocumentTemplate(fmt, 'append')"
+            pTooltip="Insert at bottom of existing canvas" tooltipPosition="top"></button>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="filteredDocumentFormats.length === 0" class="no-templates-found">
+      <i class="pi pi-info-circle text-3xl mb-2 text-500"></i>
+      <p>No document formats matching "{{ templateSearchQuery }}".</p>
+      <button pButton label="Show All Formats" class="p-button-sm p-button-text"
+        (click)="selectedDocumentCategory = 'all'; templateSearchQuery = ''; filterTemplates()"></button>
+    </div>
+  </div>
 </p-dialog>

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 
 import { FormBuilderRoutingModule } from './form-builder-routing.module';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { TranslateModule } from '@ngx-translate/core';
 import { ThirdPartyModule } from '../third-party/third-party.module';
 import { FormBuilderComponent } from './form-builder/form-builder.component';
 import { MessageService } from 'primeng/api';
@@ -16,6 +17,7 @@ import { FormViewComponent } from './form-view/form-view.component';
     FormsModule,
     ReactiveFormsModule,
     ThirdPartyModule,
+    TranslateModule,
   ],
   providers: [MessageService],
 })

@@ -1,26 +1,28 @@
 import { AppUtils } from './../../../common/app-utils';
 import { FormEvent } from './../../../data/model/forms';
-import { Component, ElementRef, OnInit, Renderer2, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnInit, Renderer2, ViewChild } from '@angular/core';
 import { FormService } from '../../../data/service/form.service';
 import { ActivatedRoute, NavigationExtras, Router } from '@angular/router';
 import { AppGlobalConstant } from '../../../constants/app-global-constant';
 import { DomSanitizer } from '@angular/platform-browser';
 import { SettingsData } from '../../../data/settings-data';
 import { Location } from '@angular/common';
-import $ from 'jquery';
+
 @Component({
   selector: 'app-form-view',
   templateUrl: './form-view.component.html',
   styleUrls: ['./form-view.component.scss'],
 })
-export class FormViewComponent implements OnInit {
+export class FormViewComponent implements OnInit, AfterViewInit {
   formCss = '';
   formHtml = '';
   formScript = '';
   displayContent: any;
-  form: FormEvent;
+  form: any;
   selectedFormTemplate: FormEvent;
+  isIframeRendered = false;
   @ViewChild('contentContainer', { static: false }) contentContainer: ElementRef;
+
   constructor(
     private formService: FormService,
     private route: ActivatedRoute,
@@ -30,52 +32,113 @@ export class FormViewComponent implements OnInit {
     private router: Router,
     private renderer: Renderer2
   ) {
-    this.form = this.router.getCurrentNavigation().extras?.state.form;
+    const nav = this.router.getCurrentNavigation();
+    this.form = nav?.extras?.state?.['form'] || (history.state && history.state.form);
+    if (!this.form) {
+      try {
+        const cached = sessionStorage.getItem('form_builder_preview_form');
+        if (cached) {
+          this.form = JSON.parse(cached);
+        }
+      } catch (e) {
+        console.warn('Could not read cached preview form in constructor:', e);
+      }
+    }
   }
 
   ngOnInit() {
-    console.log(this.selectedFormTemplate);
-    // this.formService.getFormss(this, this.form?.id);
+    if (!this.form) {
+      this.form = (history.state && history.state.form) || null;
+      if (!this.form) {
+        try {
+          const cached = sessionStorage.getItem('form_builder_preview_form');
+          if (cached) {
+            this.form = JSON.parse(cached);
+          }
+        } catch (e) {
+          console.warn('Could not read cached preview form in ngOnInit:', e);
+        }
+      }
+    }
 
-    // this.formService.getAdmissionTemplatedata(this);
+    if (this.form?.html) {
+      this.formHtml = this.form.html;
+      this.formCss = this.form.css || '';
+      this.formHtml = this.formHtml + '<style>' + this.formCss + '</style>';
+      if (this.form.jsCode) {
+        this.formScript = this.form.jsCode;
+        this.formHtml += this.formScript;
+      }
+      this.displayContent = this.sanitizer.bypassSecurityTrustHtml(this.formHtml);
+      return;
+    }
+
     if (
-      this.selectedFormTemplate?.admitType === 'OP' ||
-      this.form?.admitType === 'OP'
+      (this.selectedFormTemplate?.admitType === 'OP' || this.form?.admitType === 'OP') &&
+      (this.form?.id || this.selectedFormTemplate?.id)
     ) {
-      this.formService.getFormBuilderData(this, this.form?.id);
+      this.formService.getFormBuilderData(this, this.form?.id || this.selectedFormTemplate?.id);
     } else if (
-      this.selectedFormTemplate?.admitType === 'IP' ||
-      this.form?.admitType === 'IP'
+      (this.selectedFormTemplate?.admitType === 'IP' || this.form?.admitType === 'IP') &&
+      (this.form?.id || this.selectedFormTemplate?.id)
     ) {
-      this.formService.getIpFormBuilderData(this, this.form?.id);
+      this.formService.getIpFormBuilderData(this, this.form?.id || this.selectedFormTemplate?.id);
     } else if (
-      this.selectedFormTemplate?.admitType === 'ER' ||
-      this.form?.admitType === 'ER'
+      (this.selectedFormTemplate?.admitType === 'ER' || this.form?.admitType === 'ER') &&
+      (this.form?.id || this.selectedFormTemplate?.id)
     ) {
-      this.formService.getErFormBuilderData(this, this.form?.id);
+      this.formService.getErFormBuilderData(this, this.form?.id || this.selectedFormTemplate?.id);
     }
   }
+
+  ngAfterViewInit(): void {
+    if (this.formHtml) {
+      this.createIframeAndAppend(this.formHtml);
+    }
+  }
+
   back() {
     this.location.back();
-    // this.formService.getFormBuilderData(this, this.form?.id);
   }
 
   print() {
-    var w = window.open('', '_blank', 'width=1000,height=1500');
-    var html = $('#print').html();
-    $(w.document.body).html(html);
-    w.print();
-    w.close();
+    const w = window.open('', '_blank', 'width=1000,height=1500');
+    if (w) {
+      w.document.open();
+      w.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Print Document</title>
+            <style>${this.formCss}</style>
+          </head>
+          <body>
+            ${this.formHtml}
+          </body>
+        </html>
+      `);
+      w.document.close();
+      setTimeout(() => {
+        w.print();
+        w.close();
+      }, 300);
+    }
   }
 
-  createIframeAndAppend(html) {    
+  createIframeAndAppend(html: string) {
+    if (!this.contentContainer?.nativeElement) {
+      return;
+    }
+    this.contentContainer.nativeElement.innerHTML = '';
     const iframe = this.renderer.createElement('iframe');
     this.renderer.setAttribute(iframe, 'srcdoc', html);
-    this.renderer.setStyle(iframe, 'height', '650px');
+    this.renderer.setStyle(iframe, 'height', '100%');
+    this.renderer.setStyle(iframe, 'min-height', '750px');
     this.renderer.setStyle(iframe, 'width', '100%');
     this.renderer.setStyle(iframe, 'border', 'none');
     
     this.renderer.appendChild(this.contentContainer.nativeElement, iframe);
+    this.isIframeRendered = true;
   }
 
   onResult(data: any, type: any, other?: any): void {
@@ -83,22 +146,16 @@ export class FormViewComponent implements OnInit {
       case AppGlobalConstant.CLINICAL_FORM_BY_ + 'GET':
         this.settingsData.form = [];
         this.settingsData.form = data;
-        // if (!AppUtils.isNull(data)) {
-        //   this.formHtml = data.html;
-        //   this.formCss = data.css;
-        //   this.formHtml = this.formHtml + '<style>' + this.formCss + '</style>';
-        //   this.displayContent = this.sanitizer.bypassSecurityTrustHtml(
-        //     this.formHtml
-        //   );
-        // }
         break;
-        case AppGlobalConstant.CLINICAL_FORM_BUILDER_DATA + 'GET':
-        let formData = data?.data;
+      case AppGlobalConstant.CLINICAL_FORM_BUILDER_DATA + 'GET':
+      case AppGlobalConstant.ER_CLINICAL_FORM_BUILDER_DATA + 'GET':
+      case AppGlobalConstant.IP_CLINICAL_FORM_BUILDER_DATA + 'GET':
+        const formData = data?.data;
         this.settingsData.form = formData;
-        this.formHtml = formData.html;
-        this.formCss = formData.css;
+        this.formHtml = formData?.html || '';
+        this.formCss = formData?.css || '';
         this.formHtml = this.formHtml + '<style>' + this.formCss + '</style>';
-        if(formData.jsCode) {
+        if (formData?.jsCode) {
           this.formScript = formData.jsCode;
           this.formHtml += this.formScript;
         }
@@ -109,41 +166,17 @@ export class FormViewComponent implements OnInit {
 
         this.createIframeAndAppend(this.formHtml);
         break;
-      case AppGlobalConstant.ER_CLINICAL_FORM_BUILDER_DATA + 'GET':
-        this.settingsData.form = data?.data;
-        this.formHtml = data?.data?.html;
-        this.formCss = data?.data?.css;
-        this.formHtml = this.formHtml + '<style>' + this.formCss + '</style>';
-        if(formData.jsCode) {
-          this.formScript = formData.jsCode;
-          this.formHtml += this.formScript;
-        }
-
-        this.displayContent = this.sanitizer.bypassSecurityTrustHtml(
-          this.formHtml
-        );
-        break;
-      case AppGlobalConstant.IP_CLINICAL_FORM_BUILDER_DATA + 'GET':
-        this.settingsData.form = data?.data;
-        this.formHtml = data?.data.html;
-        this.formCss = data?.data.css;
-        this.formHtml = this.formHtml + '<style>' + this.formCss + '</style>';
-        if(formData.jsCode) {
-          this.formScript = formData.jsCode;
-          this.formHtml += this.formScript;
-        }
-       this.displayContent = this.sanitizer.bypassSecurityTrustHtml(
-          this.formHtml
-        );
-        break;
       case AppGlobalConstant.GET_ADMISSION_FORM_DATA:
         this.settingsData.form = data;
-        this.formHtml = data[0].html;
-        this.formCss = data[0].css;
-        this.formHtml = this.formHtml + '<style>' + this.formCss + '</style>';
-        this.displayContent = this.sanitizer.bypassSecurityTrustHtml(
-          this.formHtml
-        );
+        if (Array.isArray(data) && data.length > 0) {
+          this.formHtml = data[0].html || '';
+          this.formCss = data[0].css || '';
+          this.formHtml = this.formHtml + '<style>' + this.formCss + '</style>';
+          this.displayContent = this.sanitizer.bypassSecurityTrustHtml(
+            this.formHtml
+          );
+          this.createIframeAndAppend(this.formHtml);
+        }
         break;
 
       default:
