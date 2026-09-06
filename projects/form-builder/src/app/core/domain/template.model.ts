@@ -14,6 +14,7 @@ export interface TemplateVersion {
   status: TemplateStatus;
   html: string;
   css: string;
+  design?: unknown;
   schemaId?: string;
   schema?: DataSchema;
   sampleData?: Record<string, unknown>;
@@ -21,7 +22,43 @@ export interface TemplateVersion {
   changeLog?: string;
   createdBy: string;
   createdAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNotes?: string;
+  publishedBy?: string;
   publishedAt?: string;
+  archivedBy?: string;
+  archivedAt?: string;
+}
+
+export interface VersionDiffResult {
+  templateId: string;
+  versionA: number;
+  versionB: number;
+  statusA: TemplateStatus;
+  statusB: TemplateStatus;
+  htmlDiff: {
+    addedLinesCount: number;
+    removedLinesCount: number;
+    hasChanges: boolean;
+    summary: string;
+  };
+  cssDiff: {
+    hasChanges: boolean;
+    summary: string;
+  };
+  schemaDiff: {
+    addedFields: string[];
+    removedFields: string[];
+    hasChanges: boolean;
+  };
+  authorDiff: {
+    authorA: string;
+    authorB: string;
+    dateA: string;
+    dateB: string;
+  };
+  changeLogB?: string;
 }
 
 export interface Template {

@@ -35,6 +35,12 @@ import { TranslateService } from '@ngx-translate/core';
 import { DOCUMENT_CATEGORIES, DOCUMENT_FORMATS } from '../../../data/constant/document-formats.constant';
 import { DocumentCategory, DocumentCategoryId, DocumentFormat } from '../../../data/model/document-formats.model';
 import { TemplateDefinition, TemplateStatus } from '../../../data/model/template.model';
+import { TemplateVersion, VersionDiffResult } from '../../../core/domain/template.model';
+import { TemplateVersionService } from '../../../core/services/template-version.service';
+import { AuditLogService } from '../../../core/services/audit-log.service';
+import { AuditEvent, AuditFilterCriteria, AuditAction, AuditResourceType } from '../../../core/domain/audit-event.model';
+import { SecurityFoundationService } from '../../../core/services/security-foundation.service';
+import { PasswordValidationResult, SignedDocumentToken, SecurityAlert, SecurityPolicy } from '../../../core/domain/security.model';
 import { TemplateRendererService } from '../../../data/service/template-renderer.service';
 import { TemplateStoreService } from '../../../data/service/template-store.service';
 import { ClinicalAuditEvent, PatientContext } from '../../../data/model/clinical-document.model';
@@ -264,6 +270,39 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
   patientContextForm: FormGroup;
   clinicalAudit: ClinicalAuditEvent[] = [];
   clinicalDocumentStatus: 'draft' | 'reviewed' | 'signed' = 'draft';
+
+  // Phase 14: Enterprise Audit Trail & Compliance State
+  auditEvents: AuditEvent[] = [];
+  filteredAuditEvents: AuditEvent[] = [];
+  auditSearchTerm: string = '';
+  auditSelectedAction: string = 'all';
+  auditSelectedResourceType: string = 'all';
+  auditSelectedDateRange: 'all' | 'today' | '7d' | '30d' = 'all';
+  auditSelectedEventForMetadata: AuditEvent | null = null;
+  pDialogAuditMetadata: boolean = false;
+
+  // Phase 15: Security Foundation & Privacy Shield State
+  pDialogSecurityCenter: boolean = false;
+  securityActiveTab: 'overview' | 'phiShield' | 'password' | 'documentTokens' | 'alerts' = 'overview';
+  securityTestInputText: string = 'Patient named Robert Vance (MRN-90211, SSN 123-45-6789) diagnosed with Type 2 Diabetes.';
+  securityTestOutputText: string = '';
+  securityTestPhiDetected: boolean = false;
+  securityTestMaskedFields: string[] = [];
+  securityTestPasswordInput: string = 'ClinicStaff#2026';
+  securityPasswordResult: PasswordValidationResult | null = null;
+  securityGeneratedSalt: string = '';
+  securityGeneratedHash: string = '';
+  securityDocTokenId: string = 'DOC-CLINICAL-001';
+  securityDocTokenDurationMinutes: number = 15;
+  securityDocTokenPurpose: 'view' | 'download' | 'print' = 'view';
+  securityGeneratedDocToken: SignedDocumentToken | null = null;
+  securityDocTokenVerification: { valid: boolean; reason?: string } | null = null;
+  securityAlertsList: SecurityAlert[] = [];
+
+  get securityPolicy(): SecurityPolicy {
+    return this.securityService.defaultPolicy;
+  }
+
   currentLang: 'English' | 'German' = 'English';
   canvasLayoutMode: 'free' | 'a4-portrait' | 'a4-landscape' | 'receipt' = 'free';
   activeFormatName: string = 'Multi-Document Studio';
@@ -281,6 +320,20 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
   selectedBrandProfile: Brand | null = null;
   activeBrandTab: 'colors' | 'typography' | 'logo' | 'headers' | 'legal' = 'colors';
   brandPresets: BrandPreset[] = [];
+
+  // Phase 13: Versioning & Governance Lifecycle State
+  pDialogVersionManager: boolean = false;
+  activeVersionTemplate: TemplateDefinition | null = null;
+  templateVersions: TemplateVersion[] = [];
+  selectedVersion: TemplateVersion | null = null;
+  compareVersionA: number = 1;
+  compareVersionB: number = 1;
+  versionDiffResult: VersionDiffResult | null = null;
+  versionReviewNotes: string = '';
+  versionChangeLog: string = '';
+  versionRejectReason: string = '';
+  activeVersionTab: 'timeline' | 'diff' | 'audit' = 'timeline';
+  public Object = Object;
   availableFonts = [
     { label: 'Inter (Modern Clean Sans)', value: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
     { label: 'Roboto (Geometric Sans)', value: '"Roboto", Arial, sans-serif' },
@@ -400,7 +453,10 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
     public apiClientService: ApiClientService,
     public tenantWorkspaceService: TenantWorkspaceService,
     public rbacService: RbacService,
-    public brandService: BrandService
+    public brandService: BrandService,
+    public templateVersionService: TemplateVersionService,
+    public auditLogService: AuditLogService,
+    public securityService: SecurityFoundationService
   ) { }
 
   ngOnInit(): void {
@@ -481,6 +537,14 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
       .pipe(takeUntil(this.destroy$))
       .subscribe((workspaces) => {
         this.tenantWorkspaces = workspaces;
+        this.cdr.markForCheck();
+      });
+
+    // Phase 15: Security Foundation & Privacy Shield Alerts
+    this.securityService.securityAlerts$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((alerts) => {
+        this.securityAlertsList = alerts;
         this.cdr.markForCheck();
       });
 
@@ -1095,6 +1159,199 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
     this.insertHtmlIntoEditor(footerHtml);
     this.pDialogBrandSettings = false;
     AppUtils.showSuccessViaToast(this.messageService, 'Branded header & footer inserted into document!');
+    this.cdr.markForCheck();
+  }
+
+  // =========================================================================
+  // Phase 13: Versioning & Governance Lifecycle Studio
+  // =========================================================================
+
+  openVersionManager(template?: TemplateDefinition): void {
+    this.ensureHealthcareStarter();
+    const allTemplates = this.templateStore.list();
+    const target = template || this.activeGenericTemplate || allTemplates[0] || null;
+
+    if (!target) {
+      AppUtils.showErrorViaToast(this.messageService, 'No templates available for version management.');
+      return;
+    }
+
+    this.activeVersionTemplate = target;
+    this.templateVersions = this.templateVersionService.getVersions(target.id);
+    this.selectedVersion = this.templateVersions[0] || null;
+    this.activeVersionTab = 'timeline';
+    this.versionReviewNotes = '';
+    this.versionChangeLog = '';
+    this.versionRejectReason = '';
+
+    // Set default compare versions
+    if (this.templateVersions.length >= 2) {
+      this.compareVersionA = this.templateVersions[1].versionNumber;
+      this.compareVersionB = this.templateVersions[0].versionNumber;
+      this.runVersionComparison();
+    } else if (this.templateVersions.length === 1) {
+      this.compareVersionA = this.templateVersions[0].versionNumber;
+      this.compareVersionB = this.templateVersions[0].versionNumber;
+      this.versionDiffResult = null;
+    }
+
+    this.pDialogVersionManager = true;
+    this.cdr.markForCheck();
+  }
+
+  selectTemplateVersion(version: TemplateVersion): void {
+    this.selectedVersion = version;
+    this.cdr.markForCheck();
+  }
+
+  createNewDraftVersion(): void {
+    if (!this.activeVersionTemplate) return;
+    try {
+      const changeLog = this.versionChangeLog.trim() || `Draft iteration on ${new Date().toLocaleDateString()}`;
+      const newDraft = this.templateVersionService.createDraftVersion(
+        this.activeVersionTemplate.id,
+        changeLog,
+        this.selectedVersion?.versionNumber
+      );
+      this.templateVersions = this.templateVersionService.getVersions(this.activeVersionTemplate.id);
+      this.selectedVersion = newDraft;
+      this.activeVersionTemplate = this.templateStore.getById(this.activeVersionTemplate.id) || null;
+      this.versionChangeLog = '';
+      AppUtils.showSuccessViaToast(this.messageService, `Created new draft v${newDraft.versionNumber}!`);
+      this.cdr.markForCheck();
+    } catch (err: any) {
+      AppUtils.showErrorViaToast(this.messageService, err?.message || 'Could not create draft version');
+    }
+  }
+
+  submitVersionForReview(): void {
+    if (!this.activeVersionTemplate || !this.selectedVersion) return;
+    try {
+      const updated = this.templateVersionService.submitForReview(
+        this.activeVersionTemplate.id,
+        this.selectedVersion.versionNumber,
+        this.versionReviewNotes.trim() || 'Submitted for compliance & medical review'
+      );
+      this.templateVersions = this.templateVersionService.getVersions(this.activeVersionTemplate.id);
+      this.selectedVersion = updated;
+      this.activeVersionTemplate = this.templateStore.getById(this.activeVersionTemplate.id) || null;
+      this.versionReviewNotes = '';
+      AppUtils.showSuccessViaToast(this.messageService, `Version v${updated.versionNumber} submitted for review!`);
+      this.cdr.markForCheck();
+    } catch (err: any) {
+      AppUtils.showErrorViaToast(this.messageService, err?.message || 'Could not submit version for review');
+    }
+  }
+
+  approveAndPublishVersion(): void {
+    if (!this.activeVersionTemplate || !this.selectedVersion) return;
+    try {
+      const published = this.templateVersionService.approveAndPublish(
+        this.activeVersionTemplate.id,
+        this.selectedVersion.versionNumber,
+        'Approved by authorized director'
+      );
+      this.templateVersions = this.templateVersionService.getVersions(this.activeVersionTemplate.id);
+      this.selectedVersion = published;
+      this.activeVersionTemplate = this.templateStore.getById(this.activeVersionTemplate.id) || null;
+      
+      // If this is currently active canvas template, update canvas title and active format name
+      if (this.activeGenericTemplate?.id === this.activeVersionTemplate?.id) {
+        this.activeGenericTemplate = this.activeVersionTemplate;
+        this.activeFormatName = `${this.activeVersionTemplate.name} (v${published.versionNumber})`;
+      }
+      AppUtils.showSuccessViaToast(this.messageService, `Version v${published.versionNumber} published to production!`);
+      this.cdr.markForCheck();
+    } catch (err: any) {
+      AppUtils.showErrorViaToast(this.messageService, err?.message || 'Could not publish version');
+    }
+  }
+
+  rejectVersionReview(): void {
+    if (!this.activeVersionTemplate || !this.selectedVersion) return;
+    try {
+      const reason = this.versionRejectReason.trim() || 'Changes required before clinical release';
+      const rejected = this.templateVersionService.rejectReview(
+        this.activeVersionTemplate.id,
+        this.selectedVersion.versionNumber,
+        reason
+      );
+      this.templateVersions = this.templateVersionService.getVersions(this.activeVersionTemplate.id);
+      this.selectedVersion = rejected;
+      this.activeVersionTemplate = this.templateStore.getById(this.activeVersionTemplate.id) || null;
+      this.versionRejectReason = '';
+      AppUtils.showSuccessViaToast(this.messageService, `Version v${rejected.versionNumber} returned to Draft.`);
+      this.cdr.markForCheck();
+    } catch (err: any) {
+      AppUtils.showErrorViaToast(this.messageService, err?.message || 'Could not reject version');
+    }
+  }
+
+  rollbackVersion(): void {
+    if (!this.activeVersionTemplate || !this.selectedVersion) return;
+    try {
+      const targetVer = this.templateVersionService.rollbackToVersion(
+        this.activeVersionTemplate.id,
+        this.selectedVersion.versionNumber
+      );
+      this.templateVersions = this.templateVersionService.getVersions(this.activeVersionTemplate.id);
+      this.selectedVersion = targetVer;
+      this.activeVersionTemplate = this.templateStore.getById(this.activeVersionTemplate.id) || null;
+
+      // Restore onto active canvas
+      this.loadVersionIntoCanvas(targetVer);
+      AppUtils.showSuccessViaToast(this.messageService, `Rolled back to v${targetVer.versionNumber} and restored to canvas!`);
+      this.cdr.markForCheck();
+    } catch (err: any) {
+      AppUtils.showErrorViaToast(this.messageService, err?.message || 'Could not roll back version');
+    }
+  }
+
+  archiveSelectedVersion(): void {
+    if (!this.activeVersionTemplate || !this.selectedVersion) return;
+    try {
+      const archived = this.templateVersionService.archiveVersion(
+        this.activeVersionTemplate.id,
+        this.selectedVersion.versionNumber
+      );
+      this.templateVersions = this.templateVersionService.getVersions(this.activeVersionTemplate.id);
+      this.selectedVersion = archived;
+      this.activeVersionTemplate = this.templateStore.getById(this.activeVersionTemplate.id) || null;
+      AppUtils.showSuccessViaToast(this.messageService, `Version v${archived.versionNumber} archived.`);
+      this.cdr.markForCheck();
+    } catch (err: any) {
+      AppUtils.showErrorViaToast(this.messageService, err?.message || 'Could not archive version');
+    }
+  }
+
+  runVersionComparison(): void {
+    if (!this.activeVersionTemplate) return;
+    try {
+      this.versionDiffResult = this.templateVersionService.compareVersions(
+        this.activeVersionTemplate.id,
+        Number(this.compareVersionA),
+        Number(this.compareVersionB)
+      );
+      this.cdr.markForCheck();
+    } catch (err: any) {
+      this.versionDiffResult = null;
+    }
+  }
+
+  loadVersionIntoCanvas(version: TemplateVersion): void {
+    if (version.design && this.grapeEditorService?.editor?.loadProjectData) {
+      this.grapeEditorService.editor.loadProjectData(version.design);
+    } else if (this.grapeEditorService?.editor?.setComponents) {
+      this.grapeEditorService.editor.setComponents(version.html || '');
+      if (this.grapeEditorService.editor.setCss) {
+        this.grapeEditorService.editor.setCss(version.css || '');
+      }
+    }
+    if (this.activeVersionTemplate) {
+      this.activeGenericTemplate = this.activeVersionTemplate;
+      this.activeFormatName = `${this.activeVersionTemplate.name} (v${version.versionNumber})`;
+    }
+    AppUtils.showSuccessViaToast(this.messageService, `Loaded v${version.versionNumber} onto the canvas.`);
     this.cdr.markForCheck();
   }
 
@@ -1719,9 +1976,9 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
       category: this.templateCategory.trim() || 'general',
       status: this.templateStatus,
       version: previous ? previous.version + 1 : 1,
-      design: this.grapeEditorService.editor.getProjectData(),
-      html: this.grapeEditorService.editor.getHtml(),
-      css: this.grapeEditorService.editor.getCss(),
+      design: this.grapeEditorService.editor?.getProjectData ? this.grapeEditorService.editor.getProjectData() : {},
+      html: this.grapeEditorService.editor?.getHtml ? this.grapeEditorService.editor.getHtml() : '',
+      css: this.grapeEditorService.editor?.getCss ? this.grapeEditorService.editor.getCss() : '',
       dataSchema: schema,
       sampleData,
       createdAt: previous?.createdAt || now,
@@ -1731,6 +1988,21 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
     this.activeGenericTemplate = template;
     this.genericTemplates = this.templateStore.list();
     this.pDialogTemplateDetails = false;
+
+    try {
+      const action = previous
+        ? (template.status === 'published' ? 'template.published' : 'template.edited')
+        : 'template.created';
+      this.auditLogService.recordEvent(action, 'template', template.id, {
+        templateName: template.name,
+        category: template.category,
+        version: template.version,
+        status: template.status,
+      });
+    } catch {
+      // Safe fallback
+    }
+
     AppUtils.showSuccessViaToast(this.messageService, `${template.name} saved as ${template.status} (v${template.version}).`);
     this.cdr.markForCheck();
   }
@@ -1794,8 +2066,141 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
   }
 
   openAuditTrail(): void {
+    if (!this.hasRbacPermission('audit:view')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: You do not have permission to view enterprise audit trails.'
+      );
+      return;
+    }
     this.clinicalAudit = this.clinicalWorkflow.listAudit();
+    this.refreshAuditEvents();
     this.pDialogAudit = true;
+    this.cdr.markForCheck();
+  }
+
+  refreshAuditEvents(): void {
+    this.auditEvents = this.auditLogService.getEvents();
+    this.applyAuditFilters();
+  }
+
+  applyAuditFilters(): void {
+    const filters: AuditFilterCriteria = {
+      action: this.auditSelectedAction === 'all' ? undefined : (this.auditSelectedAction as any),
+      resourceType: this.auditSelectedResourceType === 'all' ? undefined : (this.auditSelectedResourceType as any),
+      searchTerm: this.auditSearchTerm,
+    };
+
+    const now = Date.now();
+    if (this.auditSelectedDateRange === 'today') {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      filters.fromDate = todayStart.toISOString();
+    } else if (this.auditSelectedDateRange === '7d') {
+      filters.fromDate = new Date(now - 7 * 86400000).toISOString();
+    } else if (this.auditSelectedDateRange === '30d') {
+      filters.fromDate = new Date(now - 30 * 86400000).toISOString();
+    }
+
+    this.filteredAuditEvents = this.auditLogService.getEvents(filters);
+    this.cdr.markForCheck();
+  }
+
+  clearAuditFilters(): void {
+    this.auditSearchTerm = '';
+    this.auditSelectedAction = 'all';
+    this.auditSelectedResourceType = 'all';
+    this.auditSelectedDateRange = 'all';
+    this.applyAuditFilters();
+  }
+
+  exportAuditCsv(): void {
+    const filters: AuditFilterCriteria = {
+      action: this.auditSelectedAction === 'all' ? undefined : (this.auditSelectedAction as any),
+      resourceType: this.auditSelectedResourceType === 'all' ? undefined : (this.auditSelectedResourceType as any),
+      searchTerm: this.auditSearchTerm,
+    };
+    const result = this.auditLogService.exportAsCsv(filters);
+    this.auditLogService.downloadExport(result);
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Exported ${result.count} audit events as CSV.`
+    );
+  }
+
+  exportAuditJson(): void {
+    const filters: AuditFilterCriteria = {
+      action: this.auditSelectedAction === 'all' ? undefined : (this.auditSelectedAction as any),
+      resourceType: this.auditSelectedResourceType === 'all' ? undefined : (this.auditSelectedResourceType as any),
+      searchTerm: this.auditSearchTerm,
+    };
+    const result = this.auditLogService.exportAsJson(filters);
+    this.auditLogService.downloadExport(result);
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Exported ${result.count} audit events as JSON.`
+    );
+  }
+
+  inspectAuditMetadata(event: AuditEvent): void {
+    this.auditSelectedEventForMetadata = event;
+    this.pDialogAuditMetadata = true;
+    this.cdr.markForCheck();
+  }
+
+  getAuditEventCountByResource(type: string): number {
+    return this.auditEvents.filter((e) => e.resourceType === type).length;
+  }
+
+  // =========================================================================
+  // Phase 15: Security Foundation & Privacy Shield Methods
+  // =========================================================================
+
+  openSecurityCenter(): void {
+    if (!this.hasRbacPermission('user:manage') && !this.hasRbacPermission('workspace:manage') && !this.hasRbacPermission('audit:view')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: You do not have permission to access the Security Center.'
+      );
+      return;
+    }
+    this.testPhiRedaction();
+    this.testPasswordSecurity();
+    this.pDialogSecurityCenter = true;
+    this.cdr.markForCheck();
+  }
+
+  testPhiRedaction(): void {
+    const result = this.securityService.maskPhi(this.securityTestInputText);
+    this.securityTestOutputText = result.cleanData;
+    this.securityTestPhiDetected = result.phiDetected;
+    this.securityTestMaskedFields = result.maskedFields;
+    this.cdr.markForCheck();
+  }
+
+  async testPasswordSecurity(): Promise<void> {
+    this.securityPasswordResult = this.securityService.validatePasswordStrength(this.securityTestPasswordInput);
+    const hashRes = await this.securityService.hashPassword(this.securityTestPasswordInput);
+    this.securityGeneratedSalt = hashRes.salt;
+    this.securityGeneratedHash = hashRes.hash;
+    this.cdr.markForCheck();
+  }
+
+  generateDocumentSecurityToken(): void {
+    const wsId = this.tenantWorkspaceService?.getActiveWorkspaceId() || 'ws_default';
+    const ttlSeconds = (this.securityDocTokenDurationMinutes || 15) * 60;
+    this.securityGeneratedDocToken = this.securityService.generateSignedDocumentAccessToken(
+      this.securityDocTokenId || 'doc_sample',
+      wsId,
+      ttlSeconds,
+      this.securityDocTokenPurpose
+    );
+    this.securityDocTokenVerification = this.securityService.verifySignedDocumentAccessToken(this.securityGeneratedDocToken);
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Issued signed expirable token for document "${this.securityDocTokenId}".`
+    );
+    this.cdr.markForCheck();
   }
 
   private recordClinicalEvent(action: ClinicalAuditEvent['action'], detail: string): void {
@@ -2873,6 +3278,14 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
       this.currentWorkspaceUsers = this.tenantWorkspaceService.getWorkspaceUsers(ws.id);
       this.apiWorkspaceIdHeader = ws.id;
       this.loadDocumentInstances();
+      try {
+        this.auditLogService.recordEvent('workspace.switched', 'workspace', ws.id, {
+          workspaceName: ws.name,
+          organizationName: this.activeOrganization?.name,
+        });
+      } catch {
+        // Safe fallback
+      }
       AppUtils.showSuccessViaToast(
         this.messageService,
         `Switched to Workspace: "${ws.name}" (${this.activeOrganization?.name})`
@@ -3025,6 +3438,16 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
     this.activeUserRole = this.rbacService.getCurrentRole();
     this.activePermissions = this.rbacService.getCurrentPermissions();
     this.isSimulatingRole = false;
+
+    try {
+      this.auditLogService.recordEvent('user.login', 'user', user.id, {
+        simulatedUserEmail: user.email,
+        role: user.role,
+      });
+    } catch {
+      // Safe fallback
+    }
+
     AppUtils.showSuccessViaToast(
       this.messageService,
       `Switched active user to ${user.firstName} ${user.lastName} (${this.getRoleDisplayName(user.role)}).`
@@ -3037,6 +3460,15 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
     this.activeUserRole = role;
     this.activePermissions = this.rbacService.getCurrentPermissions();
     this.isSimulatingRole = true;
+
+    try {
+      this.auditLogService.recordEvent('permission.changed', 'permission', role, {
+        simulatedRole: role,
+      });
+    } catch {
+      // Safe fallback
+    }
+
     AppUtils.showWarnViaToast(
       this.messageService,
       `Simulating ${this.getRoleDisplayName(role)} permissions.`
@@ -3085,6 +3517,13 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
       this.genericTemplates = this.templateStore.list();
       if (this.activeGenericTemplate?.id === template.id) {
         this.activeGenericTemplate = null;
+      }
+      try {
+        this.auditLogService.recordEvent('template.deleted', 'template', template.id, {
+          templateName: template.name,
+        });
+      } catch {
+        // Safe fallback
       }
       AppUtils.showSuccessViaToast(this.messageService, `Template "${template.name}" deleted.`);
       this.cdr.markForCheck();
@@ -3138,6 +3577,9 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
       case 'brandSettings':
         this.openBrandSettings();
         break;
+      case 'versionManager':
+        this.openVersionManager();
+        break;
       case 'patientContext':
         this.openPatientContext();
         break;
@@ -3170,6 +3612,9 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
         break;
       case 'apiPortal':
         this.openApiPortal();
+        break;
+      case 'securityCenter':
+        this.openSecurityCenter();
         break;
       default:
         break;

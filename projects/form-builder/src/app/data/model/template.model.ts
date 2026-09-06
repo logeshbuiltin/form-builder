@@ -28,5 +28,8 @@ export interface TemplateDefinition {
   createdAt: string;
   updatedAt: string;
   publishedAt?: string;
+  currentVersionId?: string;
+  versions?: import('../../core/domain/template.model').TemplateVersion[];
+  changeLog?: string;
   metadata?: Record<string, unknown>;
 }

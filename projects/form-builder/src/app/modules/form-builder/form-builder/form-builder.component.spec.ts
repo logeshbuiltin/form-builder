@@ -12,6 +12,9 @@ import { UserProfileService } from '../../../data/service/user-profile.service';
 
 import { CategoryService } from '../../../core/services/category.service';
 import { BrandService } from '../../../core/services/brand.service';
+import { TemplateVersionService } from '../../../core/services/template-version.service';
+import { AuditLogService } from '../../../core/services/audit-log.service';
+import { SecurityFoundationService } from '../../../core/services/security-foundation.service';
 
 describe('FormBuilderComponent', () => {
   let component: FormBuilderComponent;
@@ -35,6 +38,9 @@ describe('FormBuilderComponent', () => {
         UserProfileService,
         CategoryService,
         BrandService,
+        TemplateVersionService,
+        AuditLogService,
+        SecurityFoundationService,
       ],
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
@@ -709,6 +715,223 @@ describe('FormBuilderComponent', () => {
       component.applyBrandToActiveCanvas();
 
       expect(component.pDialogBrandSettings).toBeFalse();
+    });
+  });
+
+  describe('Phase 13: Versioning & Governance Studio', () => {
+    it('should open Version Manager studio and load versions for active template', () => {
+      component.openVersionManager();
+
+      expect(component.pDialogVersionManager).toBeTrue();
+      expect(component.activeVersionTemplate).toBeDefined();
+      expect(component.templateVersions.length).toBeGreaterThanOrEqual(1);
+      expect(component.selectedVersion).toBeDefined();
+    });
+
+    it('should create a new draft version from active version', () => {
+      component.openVersionManager();
+      const initialCount = component.templateVersions.length;
+
+      component.versionChangeLog = 'Drafting new vital signs layout';
+      component.createNewDraftVersion();
+
+      expect(component.templateVersions.length).toBe(initialCount + 1);
+      expect(component.selectedVersion?.status).toBe('draft');
+      expect(component.selectedVersion?.versionNumber).toBe(initialCount + 1);
+    });
+
+    it('should submit draft version for review', () => {
+      component.openVersionManager();
+      component.createNewDraftVersion();
+
+      component.versionReviewNotes = 'Ready for compliance audit';
+      component.submitVersionForReview();
+
+      expect(component.selectedVersion?.status).toBe('review');
+      expect(component.selectedVersion?.reviewNotes).toBe('Ready for compliance audit');
+    });
+
+    it('should approve and publish a version when permitted', () => {
+      component.openVersionManager();
+      component.createNewDraftVersion();
+      component.submitVersionForReview();
+
+      component.approveAndPublishVersion();
+
+      expect(component.selectedVersion?.status).toBe('published');
+      expect(component.activeVersionTemplate?.version).toBe(component.selectedVersion!.versionNumber);
+    });
+
+    it('should calculate version comparison diff between two revisions', () => {
+      component.openVersionManager();
+      component.createNewDraftVersion();
+
+      component.compareVersionA = 1;
+      component.compareVersionB = component.selectedVersion!.versionNumber;
+      component.runVersionComparison();
+
+      expect(component.versionDiffResult).toBeDefined();
+      expect(component.versionDiffResult?.versionA).toBe(1);
+      expect(component.versionDiffResult?.versionB).toBe(component.selectedVersion!.versionNumber);
+    });
+  });
+
+  describe('Phase 14: Enterprise Audit Logging & Governance', () => {
+    it('should open audit trail and load recorded events when user has audit:view permission', () => {
+      expect(component.pDialogAudit).toBeFalse();
+      component.openAuditTrail();
+
+      expect(component.pDialogAudit).toBeTrue();
+      expect(component.auditEvents.length).toBeGreaterThan(0);
+      expect(component.filteredAuditEvents.length).toBe(component.auditEvents.length);
+    });
+
+    it('should deny opening audit trail if user lacks audit:view permission', () => {
+      // Simulate healthcare_staff role which lacks audit:view
+      component.simulateRole('healthcare_staff');
+
+      component.pDialogAudit = false;
+      component.openAuditTrail();
+
+      expect(component.pDialogAudit).toBeFalse();
+    });
+
+    it('should filter audit events by action and resource type', () => {
+      component.openAuditTrail();
+
+      component.auditSelectedAction = 'user.login';
+      component.applyAuditFilters();
+      expect(component.filteredAuditEvents.every((e) => e.action === 'user.login')).toBeTrue();
+
+      component.auditSelectedAction = 'all';
+      component.auditSelectedResourceType = 'template';
+      component.applyAuditFilters();
+      expect(component.filteredAuditEvents.every((e) => e.resourceType === 'template')).toBeTrue();
+    });
+
+    it('should filter audit events by keyword search', () => {
+      component.openAuditTrail();
+      component.auditSearchTerm = 'login';
+      component.applyAuditFilters();
+
+      expect(component.filteredAuditEvents.length).toBeGreaterThan(0);
+      expect(component.filteredAuditEvents.some((e) => e.action === 'user.login')).toBeTrue();
+    });
+
+    it('should clear all audit filters', () => {
+      component.openAuditTrail();
+      component.auditSearchTerm = 'test';
+      component.auditSelectedAction = 'user.login';
+      component.auditSelectedResourceType = 'template';
+      component.auditSelectedDateRange = 'today';
+      component.applyAuditFilters();
+
+      component.clearAuditFilters();
+      expect(component.auditSearchTerm).toBe('');
+      expect(component.auditSelectedAction).toBe('all');
+      expect(component.auditSelectedResourceType).toBe('all');
+      expect(component.auditSelectedDateRange).toBe('all');
+      expect(component.filteredAuditEvents.length).toBe(component.auditEvents.length);
+    });
+
+    it('should export audit trail as CSV and JSON via AuditLogService', () => {
+      spyOn(component.auditLogService, 'exportAsCsv').and.callThrough();
+      spyOn(component.auditLogService, 'downloadExport').and.stub();
+      spyOn(component.auditLogService, 'exportAsJson').and.callThrough();
+
+      component.exportAuditCsv();
+      expect(component.auditLogService.exportAsCsv).toHaveBeenCalled();
+      expect(component.auditLogService.downloadExport).toHaveBeenCalled();
+
+      component.exportAuditJson();
+      expect(component.auditLogService.exportAsJson).toHaveBeenCalled();
+    });
+
+    it('should open metadata inspection dialog with sanitized non-PHI payload', () => {
+      const mockEvent = component.auditEvents[0] || component.auditLogService.getEvents()[0];
+      expect(component.pDialogAuditMetadata).toBeFalse();
+
+      component.inspectAuditMetadata(mockEvent);
+
+      expect(component.pDialogAuditMetadata).toBeTrue();
+      expect(component.auditSelectedEventForMetadata?.id).toBe(mockEvent.id);
+    });
+
+    it('should record audit event when template is saved and deleted', () => {
+      const initialCount = component.auditLogService.getEvents().length;
+
+      component.templateName = 'Audit Test Template';
+      component.templateCategory = 'healthcare';
+      component.templateStatus = 'draft';
+      component.templateSchemaText = '{}';
+      component.previewDataText = '{}';
+
+      component.saveGenericTemplate();
+
+      const afterSaveEvents = component.auditLogService.getEvents();
+      expect(afterSaveEvents.length).toBe(initialCount + 1);
+      expect(afterSaveEvents[0].action).toBe('template.created');
+
+      const savedTemplate = component.activeGenericTemplate!;
+      component.deleteGenericTemplate(savedTemplate);
+
+      const afterDeleteEvents = component.auditLogService.getEvents();
+      expect(afterDeleteEvents.length).toBe(initialCount + 2);
+      expect(afterDeleteEvents[0].action).toBe('template.deleted');
+    });
+  });
+
+  describe('Phase 15: Security Foundation & Privacy Shield', () => {
+    it('should open Security Center when user has admin permissions', () => {
+      // Simulate admin user (has user:manage, workspace:manage, audit:view)
+      component.rbacService.simulateRole('admin');
+
+      expect(component.pDialogSecurityCenter).toBeFalse();
+      component.openSecurityCenter();
+      expect(component.pDialogSecurityCenter).toBeTrue();
+    });
+
+    it('should execute runCategoryAction with securityCenter', () => {
+      component.rbacService.simulateRole('admin');
+
+      spyOn(component, 'openSecurityCenter').and.callThrough();
+      component.runCategoryAction('securityCenter');
+      expect(component.openSecurityCenter).toHaveBeenCalled();
+      expect(component.pDialogSecurityCenter).toBeTrue();
+    });
+
+    it('should redact PHI from test text in Security Center', () => {
+      component.securityTestInputText = 'Patient Jane Doe with MRN-88219 and SSN 123-45-6789 presented today.';
+      component.testPhiRedaction();
+
+      expect(component.securityTestOutputText).toContain('[REDACTED_SSN]');
+      expect(component.securityTestOutputText).toContain('[REDACTED_MRN]');
+      expect(component.securityTestOutputText).not.toContain('123-45-6789');
+      expect(component.securityTestOutputText).not.toContain('MRN-88219');
+    });
+
+    it('should evaluate password security score and generate salted hash', async () => {
+      component.securityTestPasswordInput = 'WeakPass';
+      await component.testPasswordSecurity();
+      expect(component.securityPasswordResult?.isValid).toBeFalse();
+      expect(component.securityPasswordResult?.issues.length).toBeGreaterThan(0);
+
+      component.securityTestPasswordInput = 'Str0ng!P@ssw0rd2026';
+      await component.testPasswordSecurity();
+      expect(component.securityPasswordResult?.isValid).toBeTrue();
+      expect(component.securityGeneratedSalt).toBeTruthy();
+      expect(component.securityGeneratedHash).toBeTruthy();
+    });
+
+    it('should generate signed document access token', () => {
+      component.securityDocTokenId = 'DOC-CLINICAL-778';
+      component.securityDocTokenDurationMinutes = 15;
+
+      component.generateDocumentSecurityToken();
+      expect(component.securityGeneratedDocToken).toBeTruthy();
+      expect(component.securityGeneratedDocToken?.documentId).toBe('DOC-CLINICAL-778');
+      expect(component.securityGeneratedDocToken?.signature).toBeTruthy();
+      expect(component.securityDocTokenVerification?.valid).toBeTrue();
     });
   });
 });

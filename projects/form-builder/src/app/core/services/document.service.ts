@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Optional } from '@angular/core';
 import {
   Document,
   DocumentStatus,
@@ -10,6 +10,7 @@ import {
 import { DataBindingEngine, BindingOptions } from '../engine/data-binding-engine';
 import { TenantWorkspaceService } from './tenant-workspace.service';
 import { RbacService } from './rbac.service';
+import { AuditLogService } from './audit-log.service';
 
 @Injectable({
   providedIn: 'root',
@@ -19,8 +20,9 @@ export class DocumentService {
   private documents: Document[] = [];
 
   constructor(
-    private tenantWorkspaceService?: TenantWorkspaceService,
-    private rbacService?: RbacService
+    @Optional() private tenantWorkspaceService?: TenantWorkspaceService,
+    @Optional() private rbacService?: RbacService,
+    @Optional() private auditLogService?: AuditLogService
   ) {
     this.loadDocuments();
   }
@@ -166,6 +168,18 @@ export class DocumentService {
 
     this.documents.unshift(newDoc);
     this.saveToStorage();
+
+    try {
+      this.auditLogService?.recordEvent('document.generated', 'document', docId, {
+        templateId: params.templateId,
+        templateName: params.templateName || 'Custom Template',
+        documentType: params.documentType || 'standard',
+        status: initialStatus,
+      });
+    } catch {
+      // Safe fallback
+    }
+
     return newDoc;
   }
 
@@ -265,6 +279,11 @@ export class DocumentService {
     const deleted = this.documents.length < initialLen;
     if (deleted) {
       this.saveToStorage();
+      try {
+        this.auditLogService?.recordEvent('document.deleted', 'document', id);
+      } catch {
+        // Safe fallback
+      }
     }
     return deleted;
   }

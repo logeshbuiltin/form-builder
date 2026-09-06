@@ -1,8 +1,9 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Optional } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Brand, BrandColors, BrandPreset, BrandTypography } from '../domain/brand.model';
 import { RbacService } from './rbac.service';
 import { TenantWorkspaceService } from './tenant-workspace.service';
+import { AuditLogService } from './audit-log.service';
 
 const BRANDS_STORAGE_KEY = 'form_builder_brands_v1';
 const ACTIVE_BRAND_ID_KEY = 'form_builder_active_brand_id_v1';
@@ -96,7 +97,8 @@ export class BrandService {
 
   constructor(
     private tenantWorkspaceService: TenantWorkspaceService,
-    private rbacService: RbacService
+    private rbacService: RbacService,
+    @Optional() private auditLogService?: AuditLogService
   ) {
     this.initBrands();
     const active = this.determineInitialActiveBrand();
@@ -220,6 +222,17 @@ export class BrandService {
 
     this.brands.push(newBrand);
     this.saveBrandsToStorage();
+
+    try {
+      this.auditLogService?.recordEvent('brand.created', 'brand', newBrand.id, {
+        brandName: newBrand.name,
+        organizationId: newBrand.organizationId,
+        isDefault: newBrand.isDefault,
+      });
+    } catch {
+      // Safe fallback
+    }
+
     return newBrand;
   }
 
@@ -262,6 +275,14 @@ export class BrandService {
       this.activeBrandSubject.next(updated);
     }
 
+    try {
+      this.auditLogService?.recordEvent('brand.updated', 'brand', id, {
+        brandName: updated.name,
+      });
+    } catch {
+      // Safe fallback
+    }
+
     return updated;
   }
 
@@ -280,12 +301,21 @@ export class BrandService {
       return false;
     }
 
+    const deletedBrand = this.brands[index];
     this.brands.splice(index, 1);
     this.saveBrandsToStorage();
 
     if (this.activeBrandSubject.value.id === id) {
       this.activeBrandSubject.next(this.brands[0]);
       this.saveActiveBrandId(this.brands[0].id);
+    }
+
+    try {
+      this.auditLogService?.recordEvent('brand.deleted', 'brand', id, {
+        brandName: deletedBrand.name,
+      });
+    } catch {
+      // Safe fallback
     }
 
     return true;

@@ -15,4 +15,4 @@ export * from './ai-request.model';
 export * from './audit-event.model';
 export * from './template-ir.model';
 export * from './api-client.model';
-
+export * from './security.model';

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Optional } from '@angular/core';
 import {
   ApiKey,
   ApiRequest,
@@ -15,6 +15,7 @@ import { DocumentFormat } from '../../data/model/document-formats.model';
 import { Document as DocumentInstance } from '../domain/document.model';
 import { TenantWorkspaceService } from './tenant-workspace.service';
 import { RbacService } from './rbac.service';
+import { AuditLogService } from './audit-log.service';
 
 @Injectable({
   providedIn: 'root',
@@ -30,8 +31,9 @@ export class ApiClientService {
   constructor(
     private documentService: DocumentService,
     private pdfExportService: PdfExportService,
-    private tenantWorkspaceService?: TenantWorkspaceService,
-    private rbacService?: RbacService
+    @Optional() private tenantWorkspaceService?: TenantWorkspaceService,
+    @Optional() private rbacService?: RbacService,
+    @Optional() private auditLogService?: AuditLogService
   ) {
     this.loadApiKeys();
     this.loadAuditLogs();
@@ -77,6 +79,19 @@ export class ApiClientService {
 
     this.apiKeys.unshift(newKey);
     this.saveApiKeys();
+
+    try {
+      this.auditLogService?.recordEvent('api_key.created', 'api_key', newKey.id, {
+        name: newKey.name,
+        keyPrefix: newKey.keyPrefix,
+        rateLimitPerMinute: newKey.rateLimitPerMinute,
+        scopes: newKey.permissions.join(', '),
+        status: newKey.status,
+      });
+    } catch {
+      // Safe fallback
+    }
+
     return newKey;
   }
 
@@ -88,6 +103,13 @@ export class ApiClientService {
     if (key) {
       key.status = 'revoked';
       this.saveApiKeys();
+      try {
+        this.auditLogService?.recordEvent('api_key.revoked', 'api_key', id, {
+          name: key.name,
+        });
+      } catch {
+        // Safe fallback
+      }
       return true;
     }
     return false;
