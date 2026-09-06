@@ -1,16 +1,11 @@
-export type DocumentCategoryId =
-  | 'all'
-  | 'finance'
-  | 'corporate'
-  | 'medical'
-  | 'operations'
-  | 'hospitality'
-  | 'proposals';
+export type DocumentCategoryId = string;
 
 export interface DocumentCategory {
-  id: DocumentCategoryId;
+  id: string;
   label: string;
   icon: string;
+  industry?: string;
+  badgeColor?: string;
 }
 
 export interface DocumentFieldToken {
@@ -34,8 +29,10 @@ export interface DocumentFormat {
   shortName: string;
   icon: string;
   emoji: string;
-  category: DocumentCategoryId;
+  category: string;
   categoryLabel: string;
+  documentTypeId?: string;
+  industry?: string;
   description: string;
   features: string[];
   defaultHtml: string;

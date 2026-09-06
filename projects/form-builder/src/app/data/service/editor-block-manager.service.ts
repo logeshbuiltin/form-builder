@@ -198,23 +198,162 @@ export class EditorBlockManagerService {
   /** Reusable domain-neutral binding primitives for the document engine. */
   public addDataBindingBlocks(editor: any): void {
     if (!editor?.BlockManager) return;
-    const category = { id: 'data-bindings', label: 'Data Bindings', open: true };
+    const category = { id: 'data-bindings', label: '⚡ Dynamic Variables', open: true };
     const blocks = [
       {
-        id: 'binding-patient-name', label: 'Patient name', icon: 'fa fa-user',
-        content: '<span>{{patient.name}}</span>'
+        id: 'binding-patient-name', label: 'Patient Name', icon: 'fa fa-user',
+        content: '<span class="var-badge" style="font-weight:600; color:#1e293b;">{{patient.name}}</span>'
       },
       {
-        id: 'binding-invoice-total', label: 'Invoice total', icon: 'fa fa-money',
-        content: '<strong>{{invoice.total}}</strong>'
+        id: 'binding-patient-dob', label: 'Patient DOB', icon: 'fa fa-calendar',
+        content: '<span>{{patient.dateOfBirth}}</span>'
       },
       {
-        id: 'binding-text', label: 'Text field', icon: 'fa fa-code',
+        id: 'binding-patient-mrn', label: 'Patient MRN', icon: 'fa fa-id-badge',
+        content: '<span style="font-family:monospace; font-weight:700;">{{patient.mrn}}</span>'
+      },
+      {
+        id: 'binding-doctor-name', label: 'Doctor Name', icon: 'fa fa-user-md',
+        content: '<span style="font-weight:600; color:#0f766e;">{{doctor.name}}</span>'
+      },
+      {
+        id: 'binding-doctor-reg', label: 'Doctor Reg No.', icon: 'fa fa-certificate',
+        content: '<span>{{doctor.registrationNumber}}</span>'
+      },
+      {
+        id: 'binding-clinic-name', label: 'Clinic Name', icon: 'fa fa-hospital-o',
+        content: '<strong style="color:#1e40af; font-size:1.1em;">{{clinic.name}}</strong>'
+      },
+      {
+        id: 'binding-appointment-date', label: 'Appointment Date', icon: 'fa fa-calendar-check-o',
+        content: '<span>{{appointment.date}}</span>'
+      },
+      {
+        id: 'binding-invoice-total', label: 'Invoice Total', icon: 'fa fa-money',
+        content: '<strong style="font-size:1.2em; color:#059669;">{{invoice.total}}</strong>'
+      },
+      {
+        id: 'binding-custom-variable', label: 'Custom Field', icon: 'fa fa-code',
         content: '<span>{{field.path}}</span>'
+      }
+    ];
+    blocks.forEach(block => {
+      if (editor.BlockManager.get(block.id)) editor.BlockManager.remove(block.id);
+      editor.BlockManager.add(block.id, { ...block, category, attributes: { class: block.icon } });
+    });
+  }
+
+  /** Reusable document structure blocks: Headers, Footers, Signatures, Tables, Page Breaks */
+  public addDocumentStructureBlocks(editor: any): void {
+    if (!editor?.BlockManager) return;
+    const category = { id: 'doc-structures', label: '📐 Document Structures', open: true };
+    const blocks = [
+      {
+        id: 'struct-header-branded',
+        label: 'Branded Header',
+        icon: 'fa fa-id-card-o',
+        content: `<header class="doc-header" style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:16px; margin-bottom:24px; border-bottom:2px solid #2563eb; font-family:Inter, Arial, sans-serif;">
+  <div style="display:flex; align-items:center; gap:16px;">
+    <div style="width:52px; height:52px; border-radius:8px; background:linear-gradient(135deg, #2563eb, #1d4ed8); display:flex; align-items:center; justify-content:center; color:#ffffff; font-size:24px; font-weight:bold;">
+      +
+    </div>
+    <div>
+      <h2 style="margin:0; font-size:20px; font-weight:800; color:#1e293b;">{{clinic.name}}</h2>
+      <p style="margin:2px 0 0 0; font-size:12px; color:#64748b;">{{clinic.address}} · Tel: {{clinic.phone}}</p>
+    </div>
+  </div>
+  <div style="text-align:right;">
+    <span style="display:inline-block; padding:4px 10px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:700; border-radius:4px; text-transform:uppercase; letter-spacing:0.5px;">{{document.title}}</span>
+    <p style="margin:4px 0 0 0; font-size:12px; color:#64748b;">Date: <strong>{{document.date}}</strong></p>
+    <p style="margin:2px 0 0 0; font-size:11px; color:#94a3b8;">Doc ID: {{document.id}}</p>
+  </div>
+</header>`
       },
       {
-        id: 'binding-items-table', label: 'Repeatable items table', icon: 'fa fa-table',
-        content: '<table style="width:100%; border-collapse:collapse;"><thead><tr><th style="text-align:left;">Item</th><th style="text-align:right;">Amount</th></tr></thead><tbody>{{#each items}}<tr><td>{{name}}</td><td style="text-align:right;">{{amount}}</td></tr>{{/each}}</tbody></table>'
+        id: 'struct-footer-pages',
+        label: 'Branded Footer',
+        icon: 'fa fa-window-minimize',
+        content: `<footer class="doc-footer" style="margin-top:40px; padding-top:16px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; font-family:Inter, Arial, sans-serif; font-size:11px; color:#64748b;">
+  <div>
+    <strong>{{clinic.name}}</strong> · Confidential Healthcare Document · Reg No: {{clinic.registrationNumber}}
+  </div>
+  <div style="text-align:right;">
+    <span>Page <span class="doc-page-num">{{document.pageNumber}}</span> of <span class="doc-total-pages">{{document.totalPages}}</span></span>
+  </div>
+</footer>`
+      },
+      {
+        id: 'struct-signatures-dual',
+        label: 'Dual Signatures',
+        icon: 'fa fa-pencil-square-o',
+        content: `<section class="doc-signatures" style="margin-top:36px; padding-top:16px; border-top:1px solid #cbd5e1; display:flex; justify-content:space-between; gap:32px; font-family:Inter, Arial, sans-serif;">
+  <div style="flex:1; border:1px dashed #cbd5e1; border-radius:6px; padding:16px; background:#f8fafc;">
+    <div style="font-size:12px; font-weight:700; color:#475569; margin-bottom:28px;">Clinician / Practitioner Signoff</div>
+    <div style="border-bottom:1px solid #1e293b; margin-bottom:8px;"></div>
+    <div style="font-size:13px; font-weight:700; color:#0f172a;">{{doctor.name}}</div>
+    <div style="font-size:11px; color:#64748b;">Reg: {{doctor.registrationNumber}} · Date: {{document.date}}</div>
+  </div>
+  <div style="flex:1; border:1px dashed #cbd5e1; border-radius:6px; padding:16px; background:#f8fafc;">
+    <div style="font-size:12px; font-weight:700; color:#475569; margin-bottom:28px;">Patient / Authorized Representative</div>
+    <div style="border-bottom:1px solid #1e293b; margin-bottom:8px;"></div>
+    <div style="font-size:13px; font-weight:700; color:#0f172a;">{{patient.name}}</div>
+    <div style="font-size:11px; color:#64748b;">Signature / Consent Date: {{document.date}}</div>
+  </div>
+</section>`
+      },
+      {
+        id: 'struct-conditional-alert',
+        label: 'Conditional Section',
+        icon: 'fa fa-exclamation-triangle',
+        content: `{{#if patient.allergies}}
+<div class="conditional-alert" style="background:#fef2f2; border-left:4px solid #ef4444; border-radius:4px; padding:12px 16px; margin:14px 0; font-family:Inter, Arial, sans-serif;">
+  <strong style="color:#b91c1c; font-size:13px;">Critical Alert / Known Allergies:</strong>
+  <span style="color:#991b1b; font-size:13px; margin-left:8px; font-weight:600;">{{patient.allergies}}</span>
+</div>
+{{/if}}`
+      },
+      {
+        id: 'struct-repeater-table',
+        label: 'Repeating Items Table',
+        icon: 'fa fa-table',
+        content: `<table class="doc-table" style="width:100%; border-collapse:collapse; margin:16px 0; font-family:Inter, Arial, sans-serif; font-size:13px;">
+  <thead>
+    <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1;">
+      <th style="padding:10px 12px; text-align:left; font-weight:700; color:#334155;">#</th>
+      <th style="padding:10px 12px; text-align:left; font-weight:700; color:#334155;">Description / Service</th>
+      <th style="padding:10px 12px; text-align:right; font-weight:700; color:#334155;">Qty</th>
+      <th style="padding:10px 12px; text-align:right; font-weight:700; color:#334155;">Rate</th>
+      <th style="padding:10px 12px; text-align:right; font-weight:700; color:#334155;">Amount</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each items}}
+    <tr style="border-bottom:1px solid #e2e8f0;">
+      <td style="padding:10px 12px; color:#64748b;">{{@index}}</td>
+      <td style="padding:10px 12px; font-weight:600; color:#1e293b;">{{name}}</td>
+      <td style="padding:10px 12px; text-align:right;">{{quantity}}</td>
+      <td style="padding:10px 12px; text-align:right;">{{rate}}</td>
+      <td style="padding:10px 12px; text-align:right; font-weight:700; color:#0f172a;">{{amount}}</td>
+    </tr>
+    {{/each}}
+  </tbody>
+  <tfoot>
+    <tr>
+      <td colspan="4" style="padding:10px 12px; text-align:right; font-weight:700; color:#475569;">Total:</td>
+      <td style="padding:10px 12px; text-align:right; font-weight:800; color:#2563eb; font-size:15px;">{{invoice.total}}</td>
+    </tr>
+  </tfoot>
+</table>`
+      },
+      {
+        id: 'struct-page-break',
+        label: 'Page Break',
+        icon: 'fa fa-scissors',
+        content: `<div class="doc-page-break" style="page-break-after: always; break-after: page; height: 2px; border-bottom: 2px dashed #94a3b8; margin: 28px 0; text-align: center; position: relative;">
+  <span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #ffffff; padding: 0 10px; color: #94a3b8; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+    Page Break (Print/PDF)
+  </span>
+</div>`
       }
     ];
     blocks.forEach(block => {
@@ -525,15 +664,19 @@ export class EditorBlockManagerService {
   }
 
   public addDocumentFormatBlocks(editor: any, categoryFilter: string = 'all'): void {
-    this.filterReadyTemplates(editor, categoryFilter);
+    this.removeReadyTemplatesFromBlock(editor);
   }
 
   public filterReadyTemplates(editor: any, categoryFilter: string = 'all'): void {
+    this.removeReadyTemplatesFromBlock(editor);
+  }
+
+  public removeReadyTemplatesFromBlock(editor: any): void {
     if (!editor || !editor.BlockManager) {
       return;
     }
 
-    // 1. Remove all existing template & format-specific blocks from BlockManager
+    // Remove all template & format-specific blocks from BlockManager
     const allManagedBlockIds = [
       ...DOCUMENT_FORMATS.map((f) => 'template-' + f.id),
       'inv-line-items',
@@ -554,8 +697,9 @@ export class EditorBlockManagerService {
       }
     });
 
-    // Clean up any legacy categories from block manager if they existed
+    // Clean up template categories from BlockManager
     const oldCatIds = [
+      'doc-templates',
       'cat-invoices',
       'cat-reports',
       'cat-medical',
@@ -578,224 +722,6 @@ export class EditorBlockManagerService {
       console.warn('Category cleanup note:', e);
     }
 
-    // 2. Single Unified Category: Ready Templates
-    const readyCategory = {
-      id: 'doc-templates',
-      label: '📄 Ready Templates',
-      open: true,
-    };
-
-    // 3. Add only the templates related to categoryFilter
-    if (categoryFilter === 'all') {
-      DOCUMENT_FORMATS.forEach((format) => {
-        editor.BlockManager.add('template-' + format.id, {
-          id: 'template-' + format.id,
-          label: format.emoji + ' ' + format.shortName,
-          media: format.previewSvg,
-          category: readyCategory,
-          attributes: { class: format.icon || 'fa fa-file-text-o' },
-          content: format.defaultHtml,
-        });
-      });
-    } else if (categoryFilter === 'invoices') {
-      const invoiceFormats = DOCUMENT_FORMATS.filter((f) =>
-        ['invoice', 'quotation', 'receipt', 'financial_report'].includes(f.id)
-      );
-      invoiceFormats.forEach((format) => {
-        editor.BlockManager.add('template-' + format.id, {
-          id: 'template-' + format.id,
-          label: format.emoji + ' ' + format.shortName,
-          media: format.previewSvg,
-          category: readyCategory,
-          attributes: { class: format.icon || 'fa fa-file-text-o' },
-          content: format.defaultHtml,
-        });
-      });
-      editor.BlockManager.add('inv-line-items', {
-        id: 'inv-line-items',
-        label: '🧾 Invoice Items Table',
-        category: readyCategory,
-        attributes: { class: 'fa fa-table' },
-        content: this.getInvoiceTableContent(),
-      });
-      editor.BlockManager.add('inv-totals-box', {
-        id: 'inv-totals-box',
-        label: '🧮 Invoice Totals Summary',
-        category: readyCategory,
-        attributes: { class: 'fa fa-calculator' },
-        content: this.getInvoiceTotalsContent(),
-      });
-    } else if (categoryFilter === 'reports') {
-      const reportFormats = DOCUMENT_FORMATS.filter((f) =>
-        ['business_report', 'financial_report'].includes(f.id)
-      );
-      reportFormats.forEach((format) => {
-        editor.BlockManager.add('template-' + format.id, {
-          id: 'template-' + format.id,
-          label: format.emoji + ' ' + format.shortName,
-          media: format.previewSvg,
-          category: readyCategory,
-          attributes: { class: format.icon || 'fa fa-file-text-o' },
-          content: format.defaultHtml,
-        });
-      });
-      editor.BlockManager.add('rep-kpi-grid', {
-        id: 'rep-kpi-grid',
-        label: '📊 4-Card KPI Metrics Grid',
-        category: readyCategory,
-        attributes: { class: 'fa fa-th-large' },
-        content: this.getKpiGridContent(),
-      });
-    } else if (categoryFilter === 'medical') {
-      const medFormats = DOCUMENT_FORMATS.filter((f) =>
-        ['medical_report'].includes(f.id)
-      );
-      medFormats.forEach((format) => {
-        editor.BlockManager.add('template-' + format.id, {
-          id: 'template-' + format.id,
-          label: format.emoji + ' ' + format.shortName,
-          media: format.previewSvg,
-          category: readyCategory,
-          attributes: { class: format.icon || 'fa fa-file-text-o' },
-          content: format.defaultHtml,
-        });
-      });
-      editor.BlockManager.add('med-rx-table', {
-        id: 'med-rx-table',
-        label: '🏥 Rx Prescription Table',
-        category: readyCategory,
-        attributes: { class: 'fa fa-medkit' },
-        content: this.getRxTableContent(),
-      });
-    } else if (categoryFilter === 'certificates') {
-      const certFormats = DOCUMENT_FORMATS.filter((f) =>
-        ['certificate'].includes(f.id)
-      );
-      certFormats.forEach((format) => {
-        editor.BlockManager.add('template-' + format.id, {
-          id: 'template-' + format.id,
-          label: format.emoji + ' ' + format.shortName,
-          media: format.previewSvg,
-          category: readyCategory,
-          attributes: { class: format.icon || 'fa fa-file-text-o' },
-          content: format.defaultHtml,
-        });
-      });
-      editor.BlockManager.add('cert-seal-badge', {
-        id: 'cert-seal-badge',
-        label: '⭐ Gold Seal & Ribbon',
-        category: readyCategory,
-        attributes: { class: 'fa fa-certificate' },
-        content: this.getCertSealContent(),
-      });
-    } else if (categoryFilter === 'menu') {
-      const menuFormats = DOCUMENT_FORMATS.filter((f) =>
-        ['restaurant_menu'].includes(f.id)
-      );
-      menuFormats.forEach((format) => {
-        editor.BlockManager.add('template-' + format.id, {
-          id: 'template-' + format.id,
-          label: format.emoji + ' ' + format.shortName,
-          media: format.previewSvg,
-          category: readyCategory,
-          attributes: { class: format.icon || 'fa fa-file-text-o' },
-          content: format.defaultHtml,
-        });
-      });
-      editor.BlockManager.add('menu-dish-item', {
-        id: 'menu-dish-item',
-        label: '🏪 Artisanal Dish Card',
-        category: readyCategory,
-        attributes: { class: 'fa fa-cutlery' },
-        content: this.getMenuDishContent(),
-      });
-    } else if (categoryFilter === 'delivery') {
-      const delFormats = DOCUMENT_FORMATS.filter((f) =>
-        ['delivery_note'].includes(f.id)
-      );
-      delFormats.forEach((format) => {
-        editor.BlockManager.add('template-' + format.id, {
-          id: 'template-' + format.id,
-          label: format.emoji + ' ' + format.shortName,
-          media: format.previewSvg,
-          category: readyCategory,
-          attributes: { class: format.icon || 'fa fa-file-text-o' },
-          content: format.defaultHtml,
-        });
-      });
-      editor.BlockManager.add('del-dispatch-table', {
-        id: 'del-dispatch-table',
-        label: '📦 Dispatched Goods Table',
-        category: readyCategory,
-        attributes: { class: 'fa fa-truck' },
-        content: this.getDispatchTableContent(),
-      });
-    } else if (categoryFilter === 'universal') {
-      editor.BlockManager.add('univ-signature', {
-        id: 'univ-signature',
-        label: '✍️ Formal Signature Line',
-        category: readyCategory,
-        attributes: { class: 'fa fa-pencil-square-o' },
-        content: this.getSignatureContent(),
-      });
-      editor.BlockManager.add('univ-stamp-paid', {
-        id: 'univ-stamp-paid',
-        label: '🟢 Official PAID Stamp',
-        category: readyCategory,
-        attributes: { class: 'fa fa-check-circle-o' },
-        content: this.getPaidStampContent(),
-      });
-      editor.BlockManager.add('univ-page-break', {
-        id: 'univ-page-break',
-        label: '📄 Print Page Break',
-        category: readyCategory,
-        attributes: { class: 'fa fa-file-o' },
-        content: this.getPageBreakContent(),
-      });
-    } else if (categoryFilter === 'hr') {
-      const hrFormats = DOCUMENT_FORMATS.filter((f) =>
-        ['hr_offer_letter', 'business_letter'].includes(f.id)
-      );
-      hrFormats.forEach((format) => {
-        editor.BlockManager.add('template-' + format.id, {
-          id: 'template-' + format.id,
-          label: format.emoji + ' ' + format.shortName,
-          media: format.previewSvg,
-          category: readyCategory,
-          attributes: { class: format.icon || 'fa fa-file-text-o' },
-          content: format.defaultHtml,
-        });
-      });
-    } else if (categoryFilter === 'proposals') {
-      const propFormats = DOCUMENT_FORMATS.filter((f) =>
-        ['proposal'].includes(f.id)
-      );
-      propFormats.forEach((format) => {
-        editor.BlockManager.add('template-' + format.id, {
-          id: 'template-' + format.id,
-          label: format.emoji + ' ' + format.shortName,
-          media: format.previewSvg,
-          category: readyCategory,
-          attributes: { class: format.icon || 'fa fa-file-text-o' },
-          content: format.defaultHtml,
-        });
-      });
-    }
-
-    // Ensure Ready Templates category is open in the editor
-    try {
-      const categories = editor.BlockManager.getCategories();
-      if (categories && categories.get) {
-        const cat = categories.get('doc-templates');
-        if (cat) {
-          cat.set('open', true);
-        }
-      }
-    } catch (e) {
-      console.warn('Category open note:', e);
-    }
-
-    // Force re-render of blocks in GrapeJS
     if (editor.BlockManager.render) {
       try {
         editor.BlockManager.render();

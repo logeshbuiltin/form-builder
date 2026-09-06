@@ -27,7 +27,9 @@
     "PREVIEW_DOC": "Dokumentvorschau",
     "HELP_DOCS": "GrapesJS-Dokumentation",
     "SAVED_LOCAL": "Dokument lokal im Browser gespeichert!",
-    "LAYOUT_SAVED_LOCAL": "Als lokales Layout '{name}' gespeichert!"
+    "LAYOUT_SAVED_LOCAL": "Als lokales Layout '{name}' gespeichert!",
+    "PDF_PRINT": "PDF & Drucken",
+    "PDF_TOOLTIP": "Hochpräzise Druck- & PDF-Pipeline mit benutzerdefinierter Seitengröße, Wasserzeichen & Verifizierung"
   },
   "GALLERY": {
     "TITLE": "Dokumentformate & Vorlagen (12 Formate)",

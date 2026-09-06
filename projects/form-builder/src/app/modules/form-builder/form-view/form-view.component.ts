@@ -7,6 +7,7 @@ import { AppGlobalConstant } from '../../../constants/app-global-constant';
 import { DomSanitizer } from '@angular/platform-browser';
 import { SettingsData } from '../../../data/settings-data';
 import { Location } from '@angular/common';
+import { PdfExportService } from '../../../core/services/pdf-export.service';
 
 @Component({
   selector: 'app-form-view',
@@ -30,7 +31,8 @@ export class FormViewComponent implements OnInit, AfterViewInit {
     public settingsData: SettingsData,
     public sanitizer: DomSanitizer,
     private router: Router,
-    private renderer: Renderer2
+    private renderer: Renderer2,
+    private pdfExportService: PdfExportService
   ) {
     const nav = this.router.getCurrentNavigation();
     this.form = nav?.extras?.state?.['form'] || (history.state && history.state.form);
@@ -102,6 +104,18 @@ export class FormViewComponent implements OnInit, AfterViewInit {
   }
 
   print() {
+    if (this.pdfExportService) {
+      const fullHtml = (this.formHtml || '') + '<style>' + (this.formCss || '') + '</style>';
+      this.pdfExportService.triggerPrint(fullHtml, {
+        documentTitle: this.form?.name || 'Healthcare Clinical Document',
+        pageSize: 'A4',
+        orientation: 'portrait',
+        includeVerificationQr: true,
+        includeBarcode: true
+      });
+      return;
+    }
+
     const w = window.open('', '_blank', 'width=1000,height=1500');
     if (w) {
       w.document.open();

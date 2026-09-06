@@ -1,16 +1,18 @@
 import { DocumentCategory, DocumentFormat } from '../model/document-formats.model';
+import { HEALTHCARE_DOCUMENT_FORMATS } from './healthcare-formats.constant';
 
 export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
-  { id: 'all', label: 'All Formats (12)', icon: 'pi pi-th-large' },
-  { id: 'finance', label: 'Finance & Billing', icon: 'pi pi-dollar' },
-  { id: 'corporate', label: 'Corporate & HR', icon: 'pi pi-briefcase' },
-  { id: 'proposals', label: 'Proposals & Bids', icon: 'pi pi-paperclip' },
-  { id: 'medical', label: 'Healthcare & Medical', icon: 'pi pi-heart' },
-  { id: 'operations', label: 'Operations & Logistics', icon: 'pi pi-box' },
-  { id: 'hospitality', label: 'Hospitality & Dining', icon: 'pi pi-compass' },
+  { id: 'all', label: 'All Templates', icon: 'fa fa-th-large' },
+  { id: 'patient_forms', label: 'Patient Forms', icon: 'fa fa-id-card-o', industry: 'healthcare', badgeColor: '#2563eb' },
+  { id: 'clinical_documents', label: 'Clinical Documents', icon: 'fa fa-stethoscope', industry: 'healthcare', badgeColor: '#0f766e' },
+  { id: 'dental', label: 'Dental', icon: 'fa fa-smile-o', industry: 'dental', badgeColor: '#0284c7' },
+  { id: 'physiotherapy', label: 'Physiotherapy', icon: 'fa fa-heartbeat', industry: 'physiotherapy', badgeColor: '#7c3aed' },
+  { id: 'laboratory', label: 'Laboratory', icon: 'fa fa-flask', industry: 'laboratory', badgeColor: '#d97706' },
+  { id: 'administrative', label: 'Administrative', icon: 'fa fa-file-text-o', industry: 'administrative', badgeColor: '#059669' },
 ];
 
 export const DOCUMENT_FORMATS: DocumentFormat[] = [
+  ...HEALTHCARE_DOCUMENT_FORMATS,
   // 1. 🧾 INVOICE / BILL
   {
     id: 'invoice',
@@ -300,8 +302,8 @@ export const DOCUMENT_FORMATS: DocumentFormat[] = [
     shortName: 'Medical Report',
     icon: 'fa fa-user-md',
     emoji: '🏥',
-    category: 'medical',
-    categoryLabel: 'Healthcare & Medical',
+    category: 'clinical_documents',
+    categoryLabel: 'Clinical Documents',
     description: 'Comprehensive clinical consultation report with hospital letterhead, patient demographics, vitals, clinical observations, diagnosis, Rx prescription, and doctor signature.',
     features: ['Hospital Letterhead', 'Patient Vitals Grid', 'Clinical Findings & Rx', 'Doctor Signature & Stamp'],
     tokens: [

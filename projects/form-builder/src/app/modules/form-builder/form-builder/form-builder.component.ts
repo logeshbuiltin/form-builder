@@ -1,5 +1,5 @@
 import { UserProfileService } from './../../../data/service/user-profile.service';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MessageService } from 'primeng/api';
 import { environment } from 'projects/form-builder/src/environments/environment';
 import { SystemMasterConstant } from '../../../common/constant/system-master-constant';
@@ -39,6 +39,44 @@ import { TemplateRendererService } from '../../../data/service/template-renderer
 import { TemplateStoreService } from '../../../data/service/template-store.service';
 import { ClinicalAuditEvent, PatientContext } from '../../../data/model/clinical-document.model';
 import { ClinicalWorkflowService } from '../../../data/service/clinical-workflow.service';
+import { VariableItem, VariableScopeGroup, VariableSchemaService } from '../../../core/services/variable-schema.service';
+import { CategoryService } from '../../../core/services/category.service';
+import { CategoryDefinition, DocumentTypeDefinition } from '../../../core/domain/category.model';
+import { AITemplateSearchService } from '../../../core/services/ai-template-search.service';
+import { AISearchResponse } from '../../../core/domain/ai-request.model';
+import { AITemplateGenerationService } from '../../../core/services/ai-template-generation.service';
+import { TemplateIR } from '../../../core/domain/template-ir.model';
+import { DocumentService } from '../../../core/services/document.service';
+import { Document as DocumentInstance, DocumentStatus, BatchDocumentGenerationResult } from '../../../core/domain/document.model';
+import { DataBindingEngine } from '../../../core/engine/data-binding-engine';
+import {
+  PdfExportService,
+  PdfExportOptions,
+  PageSize,
+  PageOrientation,
+  WatermarkType,
+  MarginSize
+} from '../../../core/services/pdf-export.service';
+import { ApiClientService } from '../../../core/services/api-client.service';
+import {
+  ApiKey,
+  ApiEndpointDefinition,
+  ApiResponse,
+  ApiAuditLog
+} from '../../../core/domain/api-client.model';
+import { TenantWorkspaceService } from '../../../core/services/tenant-workspace.service';
+import { Organization, Workspace } from '../../../core/domain/workspace.model';
+import {
+  User,
+  UserRole,
+  Permission,
+  RoleDefinition,
+  ROLE_DEFINITIONS,
+  ALL_PERMISSIONS
+} from '../../../core/domain/user.model';
+import { RbacService } from '../../../core/services/rbac.service';
+import { BrandService } from '../../../core/services/brand.service';
+import { Brand, BrandPreset } from '../../../core/domain/brand.model';
 
 @Component({
   selector: 'app-form-builder',
@@ -77,7 +115,139 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
   selectedTemplateCategory: string = 'all';
   templateSearchQuery: string = '';
   pDialogTemplateGallery: boolean = false;
+  // Phase 4: Configurable Category Taxonomy & Document Types
+  configuredCategories: CategoryDefinition[] = [];
+  selectedDocumentType: string = 'all';
+  pDialogManageCategories: boolean = false;
+  pDialogAddCategory: boolean = false;
+  pDialogAddDocType: boolean = false;
+  selectedCategoryForDocType: CategoryDefinition | null = null;
+  categoryForm: FormGroup;
+  docTypeForm: FormGroup;
+  // Phase 5: AI Template Search State
+  pDialogAISearchResults: boolean = false;
+  aiSearchResponse: AISearchResponse | null = null;
   selectedTemplateForPreview: DocumentFormat | null = null;
+  // Phase 6: Create with AI (Structured Intermediate Representation)
+  pDialogCreateWithAI: boolean = false;
+  aiGenPrompt: string = 'Create a German physiotherapy patient intake form.';
+  aiGenIndustry: string = 'Physiotherapy';
+  aiGenLanguage: 'English' | 'German' = 'German';
+  generatedIR: TemplateIR | null = null;
+  compiledPreviewHtml: string = '';
+  irJsonView: string = '';
+  isGeneratingWithAI: boolean = false;
+  aiGenActiveTab: 'preview' | 'ir' = 'preview';
+  // Phase 7: Document Instance Layer & Generation Pipeline
+  pDialogDocumentInstances: boolean = false;
+  pDialogGenerateDocument: boolean = false;
+  pDialogBatchGenerate: boolean = false;
+  pDialogDocumentView: boolean = false;
+  documentsList: DocumentInstance[] = [];
+  selectedDocumentForView: DocumentInstance | null = null;
+  docSearchQuery: string = '';
+  docStatusFilter: string = 'all';
+  docGenTitle: string = '';
+  docGenPayloadText: string = '';
+  docGenPreviewHtml: string = '';
+  docGenTemplateHtml: string = '';
+  docGenTemplateName: string = '';
+  docGenTemplateId: string = '';
+  docGenCategory: string = 'clinical_documents';
+  batchRecordsJson: string = '';
+  batchTitlePattern: string = 'Document - {{patient.name}}';
+  batchResult: BatchDocumentGenerationResult | null = null;
+  batchTemplateHtml: string = '';
+  batchTemplateName: string = '';
+  batchTemplateId: string = '';
+  // Phase 8: Export & Document Generation / PDF Pipeline
+  pDialogPdfExport: boolean = false;
+  pdfExportOptions: PdfExportOptions = {
+    pageSize: 'A4',
+    orientation: 'portrait',
+    margins: 'normal',
+    includeHeader: true,
+    includeFooter: true,
+    includePageNumbers: true,
+    watermark: 'none',
+    customWatermarkText: '',
+    includeVerificationQr: true,
+    verificationCode: 'VERIFIED-DOC-2026',
+    includeBarcode: true,
+    barcodeValue: 'MRN-2026-98214',
+    documentTitle: 'Healthcare Clinical Record',
+    organizationName: 'HEALTHCARE MEDICAL NETWORK',
+    footerNote: 'Confidential Medical Record. Unauthorized duplication or disclosure prohibited under DSGVO / EU-GDPR.'
+  };
+  pdfTargetContentHtml: string = '';
+  pdfPreviewHtml: string = '';
+  pdfExportSourceDoc: DocumentInstance | null = null;
+  pageSizeOptions: { label: string; value: PageSize }[] = [
+    { label: 'A4 (210 × 297 mm)', value: 'A4' },
+    { label: 'US Letter (8.5 × 11 in)', value: 'Letter' },
+    { label: 'US Legal (8.5 × 14 in)', value: 'Legal' },
+    { label: 'Receipt Slip (80 mm roll)', value: 'Receipt' }
+  ];
+  pageOrientationOptions: { label: string; value: PageOrientation; icon: string }[] = [
+    { label: 'Portrait', value: 'portrait', icon: 'pi pi-file' },
+    { label: 'Landscape', value: 'landscape', icon: 'pi pi-window-maximize' }
+  ];
+  watermarkOptions: { label: string; value: WatermarkType }[] = [
+    { label: 'None', value: 'none' },
+    { label: 'Confidential / Vertraulich', value: 'confidential' },
+    { label: 'Draft / Entwurf', value: 'draft' },
+    { label: 'Copy / Duplikat', value: 'copy' },
+    { label: 'Medical Record (PHI)', value: 'medical_record' },
+    { label: 'Custom Watermark...', value: 'custom' }
+  ];
+  marginOptions: { label: string; value: MarginSize }[] = [
+    { label: 'Normal (15mm)', value: 'normal' },
+    { label: 'Compact (8mm)', value: 'compact' },
+    { label: 'Wide (25mm)', value: 'wide' }
+  ];
+  // Phase 9: API-First Architecture & Developer Studio
+  pDialogApiPortal: boolean = false;
+  apiActiveTab: 'console' | 'keys' | 'snippets' | 'audit' = 'console';
+  apiEndpoints: ApiEndpointDefinition[] = [];
+  selectedApiEndpoint: ApiEndpointDefinition | null = null;
+  selectedApiKey: ApiKey | null = null;
+  apiRequestBodyText: string = '';
+  apiWorkspaceIdHeader: string = 'ws_default';
+  apiResponseResult: ApiResponse | null = null;
+  isExecutingApiRequest: boolean = false;
+  apiSnippetLang: 'curl' | 'javascript' | 'python' = 'curl';
+  generatedCodeSnippet: string = '';
+  pDialogCreateApiKey: boolean = false;
+  newApiKeyName: string = '';
+  newApiKeyWorkspace: string = 'ws_default';
+  newApiKeyRateLimit: number = 60;
+  createdApiKeyNotice: ApiKey | null = null;
+  // Phase 10: Multi-Tenancy & Workspace Isolation State
+  pDialogWorkspaceSwitcher: boolean = false;
+  pDialogCreateOrganization: boolean = false;
+  pDialogCreateWorkspace: boolean = false;
+  activeWorkspace: Workspace | null = null;
+  activeOrganization: Organization | null = null;
+  tenantOrganizations: Organization[] = [];
+  tenantWorkspaces: Workspace[] = [];
+  selectedOrgForWorkspaceView: Organization | null = null;
+  currentWorkspaceUsers: User[] = [];
+  newOrgName: string = '';
+  newOrgDescription: string = '';
+  newWsName: string = '';
+  newWsDescription: string = '';
+  newWsIndustry: string = 'healthcare';
+  newWsLanguage: string = 'de';
+  newWsCountry: string = 'DE';
+  // Phase 11: Roles & Permissions (RBAC) State
+  pDialogRbac: boolean = false;
+  activeUser: User | null = null;
+  activeUserRole: UserRole | null = null;
+  activePermissions: Permission[] = [];
+  allRoleDefinitions: RoleDefinition[] = ROLE_DEFINITIONS;
+  allPermissionsList: Permission[] = ALL_PERMISSIONS;
+  availableSimulatedUsers: User[] = [];
+  isSimulatingRole: boolean = false;
   genericTemplates: TemplateDefinition[] = [];
   activeGenericTemplate: TemplateDefinition | null = null;
   pDialogTemplateManager = false;
@@ -97,6 +267,35 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
   currentLang: 'English' | 'German' = 'English';
   canvasLayoutMode: 'free' | 'a4-portrait' | 'a4-landscape' | 'receipt' = 'free';
   activeFormatName: string = 'Multi-Document Studio';
+  // Phase 2: Schema-Driven Variables & Branding State
+  pDialogInsertVariable: boolean = false;
+  pDialogBrandSettings: boolean = false;
+  variableScopes: VariableScopeGroup[] = [];
+  selectedVariableScope: string = 'all';
+  variableSearchQuery: string = '';
+  filteredVariables: VariableItem[] = [];
+  customVarForm: FormGroup;
+  brandForm: FormGroup;
+  // Phase 12: Brand Management State
+  brandProfiles: Brand[] = [];
+  selectedBrandProfile: Brand | null = null;
+  activeBrandTab: 'colors' | 'typography' | 'logo' | 'headers' | 'legal' = 'colors';
+  brandPresets: BrandPreset[] = [];
+  availableFonts = [
+    { label: 'Inter (Modern Clean Sans)', value: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
+    { label: 'Roboto (Geometric Sans)', value: '"Roboto", Arial, sans-serif' },
+    { label: 'Montserrat (Premium Brand)', value: '"Montserrat", Arial, sans-serif' },
+    { label: 'Open Sans (Neutral Technical)', value: '"Open Sans", Arial, sans-serif' },
+    { label: 'Merriweather (Classic Editorial Serif)', value: '"Merriweather", Georgia, serif' },
+    { label: 'Courier Prime (Monospace / Clinical)', value: '"Courier Prime", Courier, monospace' },
+  ];
+  availableFontSizes = [
+    { label: '12px — Compact Print', value: '12px' },
+    { label: '13px — Clinical Standard', value: '13px' },
+    { label: '14px — Default SaaS', value: '14px' },
+    { label: '16px — Large Accessible', value: '16px' },
+  ];
+
   demographicForm: FormGroup;
   demographicTypes = [
     { label: 'Text Input', value: 'text' },
@@ -191,7 +390,17 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
     private templateStore: TemplateStoreService,
     private templateRenderer: TemplateRendererService,
     private clinicalWorkflow: ClinicalWorkflowService,
-    public translate: TranslateService
+    public translate: TranslateService,
+    public variableService: VariableSchemaService,
+    public categoryService: CategoryService,
+    public aiSearchService: AITemplateSearchService,
+    public aiGenService: AITemplateGenerationService,
+    public documentService: DocumentService,
+    public pdfExportService: PdfExportService,
+    public apiClientService: ApiClientService,
+    public tenantWorkspaceService: TenantWorkspaceService,
+    public rbacService: RbacService,
+    public brandService: BrandService
   ) { }
 
   ngOnInit(): void {
@@ -200,6 +409,80 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
     this.translate.setDefaultLang('English');
     this.translate.use(savedLang);
     this.updateCategoryOptions(savedLang);
+    this.loadConfiguredCategories();
+    this.initCategoryForms();
+    this.initBrandForm();
+
+    // Phase 12: Brand Management Observable
+    this.brandService.activeBrand$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((brand) => {
+        if (brand && (!this.selectedBrandProfile || this.selectedBrandProfile.id === brand.id)) {
+          this.selectBrandProfile(brand);
+        }
+        this.cdr.markForCheck();
+      });
+
+    // Phase 11: Roles & Permissions (RBAC) Observables
+    this.rbacService.currentUser$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((user) => {
+        this.activeUser = user;
+        this.activeUserRole = this.rbacService.getCurrentRole();
+        this.activePermissions = this.rbacService.getCurrentPermissions();
+        this.availableSimulatedUsers = this.rbacService.getAvailableUsers();
+        this.isSimulatingRole = this.rbacService.isSimulating();
+        this.cdr.markForCheck();
+      });
+
+    this.rbacService.simulatedRole$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.activeUserRole = this.rbacService.getCurrentRole();
+        this.activePermissions = this.rbacService.getCurrentPermissions();
+        this.isSimulatingRole = this.rbacService.isSimulating();
+        this.cdr.markForCheck();
+      });
+
+    // Phase 10: Multi-Tenancy Observables
+    this.tenantWorkspaceService.activeOrganization$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((org) => {
+        this.activeOrganization = org;
+        if (!this.selectedOrgForWorkspaceView && org) {
+          this.selectedOrgForWorkspaceView = org;
+        }
+        if (org) {
+          this.pdfExportOptions.organizationName = org.name;
+        }
+        this.cdr.markForCheck();
+      });
+
+    this.tenantWorkspaceService.activeWorkspace$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((ws) => {
+        this.activeWorkspace = ws;
+        if (ws) {
+          this.apiWorkspaceIdHeader = ws.id;
+          this.currentWorkspaceUsers = this.tenantWorkspaceService.getWorkspaceUsers(ws.id);
+          this.loadDocumentInstances();
+        }
+        this.cdr.markForCheck();
+      });
+
+    this.tenantWorkspaceService.organizations$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((orgs) => {
+        this.tenantOrganizations = orgs;
+        this.cdr.markForCheck();
+      });
+
+    this.tenantWorkspaceService.workspaces$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((workspaces) => {
+        this.tenantWorkspaces = workspaces;
+        this.cdr.markForCheck();
+      });
 
     this.route.queryParams
       .pipe(takeUntil(this.destroy$))
@@ -244,10 +527,9 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
           this.grapeEditorService.editor
         );
 
-        // add the 12 document formats and universal blocks to editor block
-        this.editorBlockManagerService.addDocumentFormatBlocks(
-          this.grapeEditorService.editor,
-          this.selectedTemplateCategory
+        // Clean up ready templates from GrapeJS components panel
+        this.editorBlockManagerService.removeReadyTemplatesFromBlock(
+          this.grapeEditorService.editor
         );
 
         // add the masters to editor block
@@ -281,6 +563,7 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
 
         this.editorBlockManagerService.addDataBindingBlocks(this.grapeEditorService.editor);
         this.editorBlockManagerService.addClinicalBindingBlocks(this.grapeEditorService.editor);
+        this.editorBlockManagerService.addDocumentStructureBlocks(this.grapeEditorService.editor);
         this.genericTemplates = this.templateStore.list();
 
         // Load custom layouts from local storage
@@ -363,6 +646,20 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
       clinician: [clinicalContext.clinician, Validators.required],
     });
     this.clinicalAudit = this.clinicalWorkflow.listAudit();
+
+    // Initialize Phase 2: Variable Inserter & Branding Forms
+    this.variableScopes = this.variableService.getScopeGroups();
+    this.filteredVariables = this.variableService.getAllVariables();
+
+    this.customVarForm = this.fb.group({
+      scope: ['custom', Validators.required],
+      key: ['', [Validators.required]],
+      label: ['', Validators.required],
+      type: ['string', Validators.required],
+      sampleValue: [''],
+    });
+
+    this.initBrandForm();
   }
 
   openDemographicDialog(): void {
@@ -411,6 +708,457 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
       `Demographic field '${item.label}' added to Demographics!`
     );
     this.cdr.markForCheck();
+  }
+
+  // =========================================================================
+  // Phase 2: Variable Insertion & Brand Styling APIs
+  // =========================================================================
+
+  openVariableInserter(): void {
+    this.variableScopes = this.variableService.getScopeGroups();
+    this.selectedVariableScope = 'all';
+    this.variableSearchQuery = '';
+    this.filterVariables();
+    this.pDialogInsertVariable = true;
+    this.cdr.markForCheck();
+  }
+
+  selectVariableScope(scopeId: string): void {
+    this.selectedVariableScope = scopeId;
+    this.filterVariables();
+  }
+
+  filterVariables(): void {
+    const all = this.variableService.getAllVariables();
+    const q = this.variableSearchQuery.trim().toLowerCase();
+    this.filteredVariables = all.filter((v) => {
+      const matchScope = this.selectedVariableScope === 'all' || v.scope === this.selectedVariableScope;
+      const matchQuery = !q || v.key.toLowerCase().includes(q) || v.label.toLowerCase().includes(q) || (v.description && v.description.toLowerCase().includes(q));
+      return matchScope && matchQuery;
+    });
+    this.cdr.markForCheck();
+  }
+
+  insertVariableIntoCanvas(item: VariableItem, mode: 'tag' | 'if' | 'loop' = 'tag'): void {
+    let html = '';
+    if (mode === 'tag') {
+      html = `<span class="var-badge" style="display:inline-block; padding:1px 6px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:4px; font-weight:600; font-size:0.95em;">{{${item.key}}}</span>`;
+    } else if (mode === 'if') {
+      html = this.variableService.generateConditionalSyntax(item.key, item.label);
+    } else if (mode === 'loop') {
+      html = this.variableService.generateRepeaterSyntax(item);
+    }
+
+    this.insertHtmlIntoEditor(html);
+    this.pDialogInsertVariable = false;
+    AppUtils.showSuccessViaToast(this.messageService, `Inserted '${item.label}' into document!`);
+    this.cdr.markForCheck();
+  }
+
+  insertCustomVariable(): void {
+    if (this.customVarForm.invalid) {
+      this.customVarForm.markAllAsTouched();
+      return;
+    }
+    const val = this.customVarForm.value;
+    const cleanKey = val.key.trim();
+    const item: VariableItem = {
+      key: cleanKey,
+      label: val.label.trim(),
+      scope: val.scope || 'custom',
+      type: val.type || 'string',
+      sampleValue: val.sampleValue || '',
+    };
+    this.variableService.registerCustomVariable(item);
+    this.insertVariableIntoCanvas(item, 'tag');
+    this.customVarForm.reset({
+      scope: 'custom',
+      key: '',
+      label: '',
+      type: 'string',
+      sampleValue: '',
+    });
+  }
+
+  initBrandForm(): void {
+    if (this.brandForm) return;
+
+    this.brandForm = this.fb.group({
+      id: [''],
+      name: ['St. Jude Health System', Validators.required],
+      clinicName: ['St. Jude Health System'],
+      tagline: ['Compassionate Care, Advanced Medical Science'],
+      isDefault: [true],
+      primaryColor: ['#0284c7'],
+      secondaryColor: ['#0369a1'],
+      accentColor: ['#38bdf8'],
+      backgroundColor: ['#ffffff'],
+      textColor: ['#0f172a'],
+      borderColor: ['#e2e8f0'],
+      fontFamily: ["'Inter', sans-serif"],
+      headingFontFamily: ["'Inter', sans-serif"],
+      fontSizeBase: ['14px'],
+      lineHeight: ['1.5'],
+      logoUrl: ['https://images.unsplash.com/photo-1516549655169-df83a0774514?w=120&auto=format&fit=crop&q=60'],
+      headerStyle: ['modern'],
+      footerStyle: ['standard'],
+      street: ['100 Medical Center Blvd'],
+      city: ['Boston'],
+      state: ['MA'],
+      postalCode: ['02115'],
+      country: ['USA'],
+      phone: ['+1 (617) 555-0144'],
+      email: ['records@stjudehealth.org'],
+      website: ['https://www.stjudehealth.org'],
+      taxId: ['US-EIN-9482710'],
+      registrationNumber: ['MA-MED-84920'],
+      disclaimer: ['Confidential medical record. Protected under HIPAA and applicable health information confidentiality laws.'],
+      signatoryName: ['Dr. Sarah Jenkins, MD'],
+      signatoryTitle: ['Chief Medical Officer'],
+      signatureUrl: [''],
+    });
+
+    // Synchronize clinicName with name
+    this.brandForm.get('name')?.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((val) => {
+        this.brandForm?.get('clinicName')?.setValue(val, { emitEvent: false });
+      });
+  }
+
+  openBrandSettings(): void {
+    this.initBrandForm();
+    const activeOrg = this.tenantWorkspaceService.getActiveOrganization();
+    let profiles = activeOrg
+      ? this.brandService.getBrandsByOrganization(activeOrg.id)
+      : [];
+    if (!profiles || profiles.length === 0) {
+      profiles = this.brandService.getBrands();
+    }
+    this.brandProfiles = profiles;
+    this.brandPresets = this.brandService.presets;
+
+    const activeBrand = this.brandService.getActiveBrand();
+    this.selectBrandProfile(activeBrand);
+    this.activeBrandTab = 'colors';
+    this.pDialogBrandSettings = true;
+    this.cdr.markForCheck();
+  }
+
+  selectBrandProfile(brand: Brand): void {
+    if (!brand) return;
+    this.initBrandForm();
+    this.selectedBrandProfile = brand;
+    this.brandForm.patchValue({
+      id: brand.id,
+      name: brand.name,
+      clinicName: brand.name,
+      tagline: brand.tagline || '',
+      isDefault: brand.isDefault,
+      primaryColor: brand.colors.primary,
+      secondaryColor: brand.colors.secondary,
+      accentColor: brand.colors.accent || brand.colors.primary,
+      backgroundColor: brand.colors.background,
+      textColor: brand.colors.text,
+      borderColor: brand.colors.border || '#e2e8f0',
+      fontFamily: brand.typography.fontFamily,
+      headingFontFamily: brand.typography.headingFontFamily || brand.typography.fontFamily,
+      fontSizeBase: brand.typography.fontSizeBase || '14px',
+      lineHeight: brand.typography.lineHeight || '1.5',
+      logoUrl: brand.logoUrl || '',
+      headerStyle: brand.headerStyle || 'modern',
+      footerStyle: brand.footerStyle || 'standard',
+      street: brand.address?.street || '',
+      city: brand.address?.city || '',
+      state: brand.address?.state || '',
+      postalCode: brand.address?.postalCode || '',
+      country: brand.address?.country || 'USA',
+      phone: brand.contactInfo?.phone || '',
+      email: brand.contactInfo?.email || '',
+      website: brand.contactInfo?.website || '',
+      taxId: brand.legalInfo?.taxId || '',
+      registrationNumber: brand.legalInfo?.registrationNumber || '',
+      disclaimer: brand.legalInfo?.disclaimer || '',
+      signatoryName: brand.signatoryName || '',
+      signatoryTitle: brand.signatoryTitle || '',
+      signatureUrl: brand.signatureUrl || '',
+    });
+    this.cdr.markForCheck();
+  }
+
+  applyBrandPreset(presetKey: string): void {
+    const preset = this.brandService.presets.find((p) => p.key === presetKey);
+    if (!preset) return;
+    this.brandForm.patchValue({
+      primaryColor: preset.colors.primary,
+      secondaryColor: preset.colors.secondary,
+      accentColor: preset.colors.accent,
+      backgroundColor: preset.colors.background,
+      textColor: preset.colors.text,
+      borderColor: preset.colors.border,
+      fontFamily: preset.typography.fontFamily,
+      headingFontFamily: preset.typography.headingFontFamily,
+      fontSizeBase: preset.typography.fontSizeBase,
+      lineHeight: preset.typography.lineHeight,
+    });
+    AppUtils.showSuccessViaToast(this.messageService, `Preset "${preset.name}" applied.`);
+    this.cdr.markForCheck();
+  }
+
+  saveBrandProfile(): void {
+    if (!this.rbacService.hasPermission('brand:manage')) {
+      AppUtils.showErrorViaToast(this.messageService, 'Access Denied: Missing permission brand:manage');
+      return;
+    }
+    const val = this.brandForm.value;
+    const brandData: Partial<Brand> = {
+      name: val.name,
+      tagline: val.tagline,
+      isDefault: val.isDefault,
+      logoUrl: val.logoUrl,
+      colors: {
+        primary: val.primaryColor,
+        secondary: val.secondaryColor,
+        accent: val.accentColor,
+        background: val.backgroundColor,
+        text: val.textColor,
+        border: val.borderColor,
+      },
+      typography: {
+        fontFamily: val.fontFamily,
+        headingFontFamily: val.headingFontFamily,
+        fontSizeBase: val.fontSizeBase,
+        lineHeight: val.lineHeight,
+      },
+      headerStyle: val.headerStyle,
+      footerStyle: val.footerStyle,
+      address: {
+        street: val.street,
+        city: val.city,
+        state: val.state,
+        postalCode: val.postalCode,
+        country: val.country,
+      },
+      contactInfo: {
+        phone: val.phone,
+        email: val.email,
+        website: val.website,
+      },
+      legalInfo: {
+        taxId: val.taxId,
+        registrationNumber: val.registrationNumber,
+        disclaimer: val.disclaimer,
+      },
+      signatoryName: val.signatoryName,
+      signatoryTitle: val.signatoryTitle,
+      signatureUrl: val.signatureUrl,
+    };
+
+    if (val.id && this.brandService.getBrandById(val.id)) {
+      const updated = this.brandService.updateBrand(val.id, brandData);
+      if (updated) {
+        this.selectedBrandProfile = updated;
+        AppUtils.showSuccessViaToast(this.messageService, `Brand profile "${updated.name}" updated successfully.`);
+      }
+    } else {
+      const created = this.brandService.createBrand(brandData);
+      this.selectedBrandProfile = created;
+      this.brandForm.patchValue({ id: created.id });
+      AppUtils.showSuccessViaToast(this.messageService, `New brand profile "${created.name}" created.`);
+    }
+
+    const activeOrg = this.tenantWorkspaceService.getActiveOrganization();
+    this.brandProfiles = activeOrg
+      ? this.brandService.getBrandsByOrganization(activeOrg.id)
+      : this.brandService.getBrands();
+    this.cdr.markForCheck();
+  }
+
+  createNewBrandProfile(): void {
+    const activeOrg = this.tenantWorkspaceService.getActiveOrganization();
+    this.selectedBrandProfile = null;
+    this.brandForm.reset({
+      id: '',
+      name: `${activeOrg?.name || 'Clinic'} Brand Profile`,
+      clinicName: `${activeOrg?.name || 'Clinic'} Brand Profile`,
+      tagline: 'Healthcare Excellence',
+      isDefault: false,
+      primaryColor: '#0284c7',
+      secondaryColor: '#0369a1',
+      accentColor: '#38bdf8',
+      backgroundColor: '#ffffff',
+      textColor: '#0f172a',
+      borderColor: '#e2e8f0',
+      fontFamily: "'Inter', sans-serif",
+      headingFontFamily: "'Inter', sans-serif",
+      fontSizeBase: '14px',
+      lineHeight: '1.5',
+      logoUrl: '',
+      headerStyle: 'modern',
+      footerStyle: 'standard',
+      street: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      country: 'USA',
+      phone: '',
+      email: '',
+      website: '',
+      taxId: '',
+      registrationNumber: '',
+      disclaimer: 'Confidential medical documentation.',
+      signatoryName: '',
+      signatoryTitle: '',
+      signatureUrl: '',
+    });
+    this.activeBrandTab = 'colors';
+    this.cdr.markForCheck();
+  }
+
+  deleteBrandProfile(id: string): void {
+    if (!this.rbacService.hasPermission('brand:manage')) {
+      AppUtils.showErrorViaToast(this.messageService, 'Access Denied: Missing permission brand:manage');
+      return;
+    }
+    const ok = this.brandService.deleteBrand(id);
+    if (ok) {
+      AppUtils.showSuccessViaToast(this.messageService, 'Brand profile deleted.');
+      const activeOrg = this.tenantWorkspaceService.getActiveOrganization();
+      this.brandProfiles = activeOrg
+        ? this.brandService.getBrandsByOrganization(activeOrg.id)
+        : this.brandService.getBrands();
+      this.selectBrandProfile(this.brandService.getActiveBrand());
+      this.cdr.markForCheck();
+    } else {
+      AppUtils.showWarnViaToast(this.messageService, 'Cannot delete the only remaining brand profile.');
+    }
+  }
+
+  setAsDefaultBrand(id?: string): void {
+    if (!this.rbacService.hasPermission('brand:manage')) {
+      AppUtils.showErrorViaToast(this.messageService, 'Access Denied: Missing permission brand:manage');
+      return;
+    }
+    const brandId = id || this.brandForm.value.id;
+    const activeOrg = this.tenantWorkspaceService.getActiveOrganization();
+    if (brandId && activeOrg) {
+      this.brandService.setOrganizationDefaultBrand(activeOrg.id, brandId);
+      this.brandForm.patchValue({ isDefault: true });
+      AppUtils.showSuccessViaToast(this.messageService, 'Brand set as default for this organization.');
+      this.brandProfiles = this.brandService.getBrandsByOrganization(activeOrg.id);
+      this.cdr.markForCheck();
+    }
+  }
+
+  applyBrandSettings(): void {
+    this.applyBrandToActiveCanvas();
+  }
+
+  applyBrandToActiveCanvas(): void {
+    const brand = this.getBrandFromFormValues();
+    const editor = this.grapeEditorService?.editor;
+    if (editor) {
+      const brandCss = this.brandService.generateBrandCss(brand);
+      const existing = typeof editor.getCss === 'function' ? (editor.getCss() || '') : '';
+      if (typeof editor.setCss === 'function') {
+        editor.setCss(existing + '\n' + brandCss);
+      }
+    }
+    this.pDialogBrandSettings = false;
+    AppUtils.showSuccessViaToast(this.messageService, `Brand styles for "${brand.name}" applied to canvas!`);
+    this.cdr.markForCheck();
+  }
+
+  insertBrandedHeader(): void {
+    const brand = this.getBrandFromFormValues();
+    const html = this.brandService.generateHeaderHtml(brand, brand.headerStyle as any);
+    this.insertHtmlIntoEditor(html);
+    this.pDialogBrandSettings = false;
+    AppUtils.showSuccessViaToast(this.messageService, 'Branded header inserted!');
+    this.cdr.markForCheck();
+  }
+
+  insertBrandedFooter(): void {
+    const brand = this.getBrandFromFormValues();
+    const html = this.brandService.generateFooterHtml(brand, brand.footerStyle as any);
+    this.insertHtmlIntoEditor(html);
+    this.pDialogBrandSettings = false;
+    AppUtils.showSuccessViaToast(this.messageService, 'Branded footer inserted!');
+    this.cdr.markForCheck();
+  }
+
+  insertBrandedHeaderAndFooter(): void {
+    const brand = this.getBrandFromFormValues();
+    const headerHtml = this.brandService.generateHeaderHtml(brand, brand.headerStyle as any);
+    const footerHtml = this.brandService.generateFooterHtml(brand, brand.footerStyle as any);
+    this.insertHtmlIntoEditor(headerHtml);
+    this.insertHtmlIntoEditor(footerHtml);
+    this.pDialogBrandSettings = false;
+    AppUtils.showSuccessViaToast(this.messageService, 'Branded header & footer inserted into document!');
+    this.cdr.markForCheck();
+  }
+
+  getBrandFromFormValues(): Brand {
+    const val = this.brandForm.value;
+    const activeOrg = this.tenantWorkspaceService.getActiveOrganization();
+    return {
+      id: val.id || 'temp_brand',
+      organizationId: activeOrg?.id || 'org_general_health',
+      name: val.name || val.clinicName || 'Healthcare Clinic',
+      tagline: val.tagline,
+      isDefault: val.isDefault,
+      logoUrl: val.logoUrl,
+      colors: {
+        primary: val.primaryColor,
+        secondary: val.secondaryColor,
+        accent: val.accentColor || val.primaryColor,
+        background: val.backgroundColor,
+        text: val.textColor,
+        border: val.borderColor || '#e2e8f0',
+      },
+      typography: {
+        fontFamily: val.fontFamily,
+        headingFontFamily: val.headingFontFamily || val.fontFamily,
+        fontSizeBase: val.fontSizeBase,
+        lineHeight: val.lineHeight || '1.5',
+      },
+      headerStyle: val.headerStyle || 'modern',
+      footerStyle: val.footerStyle || 'standard',
+      address: {
+        street: val.street,
+        city: val.city,
+        state: val.state,
+        postalCode: val.postalCode,
+        country: val.country,
+      },
+      contactInfo: {
+        phone: val.phone,
+        email: val.email,
+        website: val.website,
+      },
+      legalInfo: {
+        taxId: val.taxId,
+        registrationNumber: val.registrationNumber,
+        disclaimer: val.disclaimer,
+      },
+      signatoryName: val.signatoryName,
+      signatoryTitle: val.signatoryTitle,
+      signatureUrl: val.signatureUrl,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  insertHtmlIntoEditor(html: string): void {
+    const editor = this.grapeEditorService.editor;
+    if (!editor) return;
+    const selected = editor.getSelected();
+    if (selected) {
+      selected.append(html);
+    } else {
+      const wrapper = editor.getWrapper();
+      wrapper.append(html);
+    }
   }
 
   /**
@@ -934,6 +1682,22 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
   }
 
   saveGenericTemplate(): void {
+    if (!this.rbacService.hasPermission('template:edit') && !this.rbacService.hasPermission('template:create')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: Missing required permission template:edit'
+      );
+      return;
+    }
+
+    if (this.templateStatus === 'published' && !this.rbacService.hasPermission('template:publish')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: Missing required permission template:publish'
+      );
+      return;
+    }
+
     let schema: Record<string, unknown>;
     let sampleData: Record<string, unknown>;
     try {
@@ -1104,9 +1868,41 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
 
   // --- Multi-Document Studio Methods ---
 
+  loadConfiguredCategories(): void {
+    this.configuredCategories = this.categoryService.getCategories();
+    this.documentCategories = this.configuredCategories.map((c) => ({
+      id: c.id,
+      label: c.name,
+      icon: c.icon,
+      industry: c.industry,
+      badgeColor: c.badgeColor,
+    }));
+    this.cdr.markForCheck();
+  }
+
+  initCategoryForms(): void {
+    this.categoryForm = this.fb.group({
+      id: ['', [Validators.required, Validators.pattern(/^[a-z0-9_-]+$/)]],
+      name: ['', Validators.required],
+      description: [''],
+      industry: ['healthcare', Validators.required],
+      icon: ['fa fa-folder-o', Validators.required],
+      badgeColor: ['#2563eb'],
+    });
+
+    this.docTypeForm = this.fb.group({
+      id: ['', [Validators.required, Validators.pattern(/^[a-z0-9_-]+$/)]],
+      name: ['', Validators.required],
+      description: [''],
+      tags: [''],
+    });
+  }
+
   openTemplateGallery(): void {
+    this.loadConfiguredCategories();
     this.templateSearchQuery = '';
     this.selectedDocumentCategory = 'all';
+    this.selectedDocumentType = 'all';
     this.filterTemplates();
     this.pDialogTemplateGallery = true;
     this.cdr.markForCheck();
@@ -1114,21 +1910,149 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
 
   selectCategory(catId: DocumentCategoryId): void {
     this.selectedDocumentCategory = catId;
+    this.selectedDocumentType = 'all';
     this.filterTemplates();
+  }
+
+  selectDocType(docTypeId: string): void {
+    this.selectedDocumentType = docTypeId;
+    this.filterTemplates();
+  }
+
+  getActiveCategoryDocTypes(): DocumentTypeDefinition[] {
+    if (!this.selectedDocumentCategory || this.selectedDocumentCategory === 'all') {
+      return [];
+    }
+    return this.categoryService.getDocumentTypesByCategory(this.selectedDocumentCategory);
+  }
+
+  openCategoryManager(): void {
+    this.loadConfiguredCategories();
+    this.pDialogManageCategories = true;
+    this.cdr.markForCheck();
+  }
+
+  openAddCategoryDialog(): void {
+    this.categoryForm.reset({
+      id: '',
+      name: '',
+      description: '',
+      industry: 'healthcare',
+      icon: 'fa fa-folder-o',
+      badgeColor: '#2563eb',
+    });
+    this.pDialogAddCategory = true;
+    this.cdr.markForCheck();
+  }
+
+  saveCategoryFromModal(): void {
+    if (this.categoryForm.invalid) {
+      AppUtils.showWarnViaToast(this.messageService, 'Please provide a valid Category ID (lowercase/hyphens) and Name');
+      return;
+    }
+    const val = this.categoryForm.value;
+    const cat: CategoryDefinition = {
+      id: val.id.trim().toLowerCase(),
+      name: val.name.trim(),
+      description: val.description?.trim() || '',
+      industry: val.industry,
+      icon: val.icon?.trim() || 'fa fa-folder-o',
+      badgeColor: val.badgeColor || '#2563eb',
+      isBuiltIn: false,
+      sortOrder: this.configuredCategories.length + 1,
+      documentTypes: [],
+    };
+    this.categoryService.saveCategory(cat);
+    this.loadConfiguredCategories();
+    this.pDialogAddCategory = false;
+    AppUtils.showSuccessViaToast(this.messageService, `Category "${cat.name}" created`);
+    this.cdr.markForCheck();
+  }
+
+  deleteCategoryFromModal(cat: CategoryDefinition): void {
+    if (cat.isBuiltIn) {
+      AppUtils.showWarnViaToast(this.messageService, 'Built-in categories cannot be deleted');
+      return;
+    }
+    const success = this.categoryService.deleteCategory(cat.id);
+    if (success) {
+      this.loadConfiguredCategories();
+      if (this.selectedDocumentCategory === cat.id) {
+        this.selectCategory('all');
+      }
+      AppUtils.showSuccessViaToast(this.messageService, `Category "${cat.name}" deleted`);
+    } else {
+      AppUtils.showErrorViaToast(this.messageService, 'Could not delete category');
+    }
+    this.cdr.markForCheck();
+  }
+
+  openAddDocTypeDialog(cat: CategoryDefinition): void {
+    this.selectedCategoryForDocType = cat;
+    this.docTypeForm.reset({
+      id: '',
+      name: '',
+      description: '',
+      tags: '',
+    });
+    this.pDialogAddDocType = true;
+    this.cdr.markForCheck();
+  }
+
+  saveDocTypeFromModal(): void {
+    if (!this.selectedCategoryForDocType || this.docTypeForm.invalid) {
+      AppUtils.showWarnViaToast(this.messageService, 'Please provide a valid Document Type ID and Name');
+      return;
+    }
+    const val = this.docTypeForm.value;
+    const tags = (val.tags || '')
+      .split(',')
+      .map((t: string) => t.trim().toLowerCase())
+      .filter((t: string) => !!t);
+
+    const docType: DocumentTypeDefinition = {
+      id: val.id.trim().toLowerCase(),
+      name: val.name.trim(),
+      description: val.description?.trim() || '',
+      categoryId: this.selectedCategoryForDocType.id,
+      industry: this.selectedCategoryForDocType.industry,
+      tags,
+      isBuiltIn: false,
+    };
+
+    this.categoryService.addDocumentType(this.selectedCategoryForDocType.id, docType);
+    this.loadConfiguredCategories();
+    this.pDialogAddDocType = false;
+    AppUtils.showSuccessViaToast(this.messageService, `Document type "${docType.name}" added`);
+    this.cdr.markForCheck();
+  }
+
+  resetCategoriesToDefault(): void {
+    this.categoryService.resetToDefaults();
+    this.loadConfiguredCategories();
+    this.selectCategory('all');
+    AppUtils.showSuccessViaToast(this.messageService, 'Categories reset to initial platform defaults');
+    this.cdr.markForCheck();
   }
 
   filterTemplates(): void {
     const q = (this.templateSearchQuery || '').toLowerCase().trim();
     this.filteredDocumentFormats = this.documentFormats.filter((fmt) => {
-      const matchCat =
-        this.selectedDocumentCategory === 'all' ||
-        fmt.category === this.selectedDocumentCategory;
+      const matchCat = this.categoryService.isFormatMatchingCategory(
+        fmt.category,
+        this.selectedDocumentCategory
+      );
+      const matchDocType =
+        !this.selectedDocumentType ||
+        this.selectedDocumentType === 'all' ||
+        fmt.documentTypeId === this.selectedDocumentType ||
+        fmt.id === this.selectedDocumentType;
       const matchSearch =
         !q ||
         fmt.name.toLowerCase().includes(q) ||
         fmt.description.toLowerCase().includes(q) ||
         fmt.features.some((f) => f.toLowerCase().includes(q));
-      return matchCat && matchSearch;
+      return matchCat && matchDocType && matchSearch;
     });
     this.cdr.markForCheck();
   }
@@ -1225,125 +2149,1049 @@ export class FormBuilderComponent implements OnInit, OnDestroy, ApiCallBack {
     if (!this.aiSearchQuery || !this.aiSearchQuery.trim()) {
       return;
     }
-    const query = this.aiSearchQuery.trim().toLowerCase();
+    const query = this.aiSearchQuery.trim();
+    this.aiSearchResponse = this.aiSearchService.search(query, this.documentFormats);
+    this.pDialogAISearchResults = true;
+    this.cdr.markForCheck();
+  }
 
-    // Check if query matches any of the 12 document formats (English and German)
-    const matched = this.documentFormats.find((f) => {
-      const id = f.id.toLowerCase();
-      const name = f.name.toLowerCase();
-      return (
-        query.includes(id) ||
-        query.includes(name) ||
-        (query.includes('invoice') && id === 'invoice') ||
-        (query.includes('bill') && id === 'invoice') ||
-        (query.includes('rechnung') && id === 'invoice') ||
-        (query.includes('abrechnung') && id === 'invoice') ||
-        ((query.includes('report') || query.includes('bericht') || query.includes('geschäftsbericht')) &&
-          !query.includes('medical') && !query.includes('arzt') &&
-          !query.includes('financial') && !query.includes('finanz') &&
-          id === 'business-report') ||
-        ((query.includes('medical') ||
-          query.includes('doctor') ||
-          query.includes('clinic') ||
-          query.includes('patient') ||
-          query.includes('arzt') ||
-          query.includes('arztbericht') ||
-          query.includes('befund') ||
-          query.includes('patientenbericht')) &&
-          id === 'medical-report') ||
-        ((query.includes('quote') ||
-          query.includes('quotation') ||
-          query.includes('estimate') ||
-          query.includes('angebot') ||
-          query.includes('kostenvoranschlag')) &&
-          id === 'quotation') ||
-        ((query.includes('hr') ||
-          query.includes('employee') ||
-          query.includes('offer') ||
-          query.includes('contract') ||
-          query.includes('personal') ||
-          query.includes('arbeitsvertrag') ||
-          query.includes('vertrag')) &&
-          id === 'hr-document') ||
-        ((query.includes('cert') ||
-          query.includes('certificate') ||
-          query.includes('award') ||
-          query.includes('zertifikat') ||
-          query.includes('urkunde') ||
-          query.includes('bescheinigung')) &&
-          id === 'certificate') ||
-        ((query.includes('receipt') ||
-          query.includes('pos') ||
-          query.includes('slip') ||
-          query.includes('quittung') ||
-          query.includes('beleg') ||
-          query.includes('kassenbon')) &&
-          id === 'receipt') ||
-        ((query.includes('proposal') ||
-          query.includes('bid') ||
-          query.includes('pitch') ||
-          query.includes('projektvorschlag') ||
-          query.includes('vorschlag') ||
-          query.includes('ausschreibung')) &&
-          id === 'proposal') ||
-        ((query.includes('financial') ||
-          query.includes('p&l') ||
-          query.includes('profit') ||
-          query.includes('balance sheet') ||
-          query.includes('finanz') ||
-          query.includes('bilanz') ||
-          query.includes('gewinn')) &&
-          id === 'financial-report') ||
-        ((query.includes('menu') ||
-          query.includes('restaurant') ||
-          query.includes('food') ||
-          query.includes('cafe') ||
-          query.includes('speisekarte') ||
-          query.includes('karte') ||
-          query.includes('gericht')) &&
-          id === 'restaurant-menu') ||
-        ((query.includes('delivery') ||
-          query.includes('dispatch') ||
-          query.includes('shipping') ||
-          query.includes('lieferschein') ||
-          query.includes('lieferung') ||
-          query.includes('versand')) &&
-          id === 'delivery-note') ||
-        ((query.includes('letter') ||
-          query.includes('letterhead') ||
-          query.includes('formal') ||
-          query.includes('brief') ||
-          query.includes('geschäftsbrief') ||
-          query.includes('anschreiben')) &&
-          id === 'business-letter')
-      );
-    });
+  useAISearchTemplate(tmpl: DocumentFormat, mode: 'replace' | 'append' = 'replace'): void {
+    this.loadDocumentTemplate(tmpl, mode);
+    this.pDialogAISearchResults = false;
+    this.aiSearchQuery = '';
+    this.cdr.markForCheck();
+  }
 
-    if (matched) {
-      this.loadDocumentTemplate(matched, 'replace');
-      const detailMsg = this.currentLang === 'German'
-        ? `Erkanntes Format: ${matched.name}. Vorlage auf der Arbeitsfläche geladen!`
-        : `Recognized format: ${matched.name}. Template loaded onto canvas!`;
-      this.messageService.add({
-        key: 'tst',
-        severity: 'success',
-        summary: 'AI Form Assistant',
-        detail: detailMsg,
-      });
-      this.aiSearchQuery = '';
-    } else {
-      this.openTemplateGallery();
-      this.templateSearchQuery = query;
-      this.filterTemplates();
-      this.messageService.add({
-        key: 'tst',
-        severity: 'info',
-        summary: 'AI Form Assistant',
-        detail: `Opened template gallery for "${query}". Select a layout below:`,
-      });
+  hasExtractedAttributes(): boolean {
+    if (!this.aiSearchResponse || !this.aiSearchResponse.extractedAttributes) {
+      return false;
+    }
+    const a = this.aiSearchResponse.extractedAttributes;
+    return !!(a.industry || a.documentType || a.language || a.country || a.audience);
+  }
+
+  // Phase 6: Create with AI via Structured Intermediate Representation
+  openCreateWithAIDialog(initialPrompt?: string): void {
+    if (initialPrompt && initialPrompt.trim()) {
+      this.aiGenPrompt = initialPrompt.trim();
+    } else if (!this.aiGenPrompt) {
+      this.aiGenPrompt = 'Create a German physiotherapy patient intake form.';
+    }
+    this.pDialogCreateWithAI = true;
+    if (!this.generatedIR) {
+      this.generateWithAI();
     }
     this.cdr.markForCheck();
   }
+
+  setAIGenPromptPreset(preset: string): void {
+    this.aiGenPrompt = preset;
+    const q = preset.toLowerCase();
+    if (q.includes('german') || q.includes('deutsch') || q.includes('physiotherapie')) {
+      this.aiGenLanguage = 'German';
+    } else {
+      this.aiGenLanguage = 'English';
+    }
+
+    if (q.includes('physio') || q.includes('krankengymnastik')) {
+      this.aiGenIndustry = 'Physiotherapy';
+    } else if (q.includes('dent') || q.includes('zahn')) {
+      this.aiGenIndustry = 'Dental';
+    } else if (q.includes('consent') || q.includes('einwilligung')) {
+      this.aiGenIndustry = 'Patient Consent';
+    } else if (q.includes('discharge') || q.includes('entlass')) {
+      this.aiGenIndustry = 'Clinical Documents';
+    } else if (q.includes('invoice') || q.includes('rechnung')) {
+      this.aiGenIndustry = 'Billing & Invoices';
+    }
+
+    this.generateWithAI();
+  }
+
+  generateWithAI(): void {
+    if (!this.aiGenPrompt || !this.aiGenPrompt.trim()) {
+      return;
+    }
+    this.isGeneratingWithAI = true;
+    this.cdr.markForCheck();
+
+    try {
+      const ir = this.aiGenService.generateTemplateIR(this.aiGenPrompt, {
+        language: this.aiGenLanguage,
+        industry: this.aiGenIndustry
+      });
+
+      this.generatedIR = ir;
+      this.compiledPreviewHtml = this.aiGenService.compileIRToHtml(ir);
+      this.irJsonView = JSON.stringify(ir, null, 2);
+    } catch (err) {
+      console.error('Error generating template IR:', err);
+      AppUtils.showErrorViaToast(this.messageService, 'Failed to generate template via AI IR.');
+    } finally {
+      this.isGeneratingWithAI = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  applyGeneratedTemplate(mode: 'replace' | 'append' = 'replace'): void {
+    if (!this.generatedIR || !this.compiledPreviewHtml) {
+      return;
+    }
+
+    const docFormat: DocumentFormat = {
+      id: `ai-gen-${this.generatedIR.id || Date.now()}`,
+      name: this.generatedIR.title,
+      shortName: this.generatedIR.title.slice(0, 20),
+      icon: 'pi pi-sparkles',
+      emoji: '✨',
+      category: this.generatedIR.industry || 'physiotherapy',
+      categoryLabel: this.generatedIR.industry || 'Physiotherapy',
+      documentTypeId: this.generatedIR.templateType || 'form',
+      description: `AI-generated template (${this.generatedIR.language}, ${this.generatedIR.country || 'Universal'})`,
+      features: ['AI Intermediate Representation', 'Validated Schema', 'Print-Optimized'],
+      defaultHtml: this.compiledPreviewHtml,
+      tokens: [],
+      previewSvg: ''
+    };
+
+    this.loadDocumentTemplate(docFormat, mode);
+    this.pDialogCreateWithAI = false;
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Template "${this.generatedIR.title}" loaded to canvas.`
+    );
+    this.cdr.markForCheck();
+  }
+
+  private extractSchemaFromIR(ir: TemplateIR): any[] {
+    const fields: any[] = [];
+    if (!ir || !ir.sections) return fields;
+    for (const sec of ir.sections) {
+      if (sec.fields) {
+        for (const f of sec.fields) {
+          fields.push({
+            name: f.token || f.id,
+            label: f.label,
+            type: f.type,
+            required: !!f.required
+          });
+        }
+      }
+    }
+    return fields;
+  }
+
+  // =========================================================================
+  // Phase 7: Document Instance Layer & Generation Pipeline Methods
+  // =========================================================================
+
+  loadDocumentInstances(): void {
+    this.documentsList = this.documentService.getDocumentsForActiveWorkspace();
+    this.cdr.markForCheck();
+  }
+
+  openDocumentInstancesDialog(): void {
+    this.loadDocumentInstances();
+    this.pDialogDocumentInstances = true;
+    this.cdr.markForCheck();
+  }
+
+  getDocumentCountByStatus(status: string): number {
+    if (!this.documentsList) return 0;
+    return this.documentsList.filter((d) => d.status === status).length;
+  }
+
+  getFilteredDocuments(): DocumentInstance[] {
+    let docs = this.documentsList || [];
+    if (this.docStatusFilter && this.docStatusFilter !== 'all') {
+      docs = docs.filter((d) => d.status === this.docStatusFilter);
+    }
+    if (this.docSearchQuery && this.docSearchQuery.trim()) {
+      const q = this.docSearchQuery.trim().toLowerCase();
+      docs = docs.filter(
+        (d) =>
+          d.title.toLowerCase().includes(q) ||
+          (d.patientName && d.patientName.toLowerCase().includes(q)) ||
+          (d.patientMrn && d.patientMrn.toLowerCase().includes(q)) ||
+          (d.templateName && d.templateName.toLowerCase().includes(q))
+      );
+    }
+    return docs;
+  }
+
+  openGenerateDocumentDialog(format?: DocumentFormat): void {
+    const samples = this.documentService.getSamplePayloads();
+    let sampleKey = 'physiotherapy';
+
+    if (format) {
+      this.docGenTemplateHtml = format.defaultHtml;
+      this.docGenTemplateName = format.name;
+      this.docGenTemplateId = format.id;
+      this.docGenCategory = format.category;
+      this.docGenTitle = `${format.name} - Instance`;
+      if (format.id.includes('dent') || format.category === 'dental') {
+        sampleKey = 'dental';
+      } else if (format.id.includes('discharge')) {
+        sampleKey = 'discharge';
+      } else if (format.id.includes('invoice')) {
+        sampleKey = 'invoice';
+      }
+    } else {
+      const canvasHtml = this.grapeEditorService?.editor?.getHtml() || '';
+      this.docGenTemplateHtml = canvasHtml || this.documentFormats[0]?.defaultHtml || '';
+      this.docGenTemplateName = this.activeFormatName || 'Active Canvas Form';
+      this.docGenTemplateId = `canvas_tmpl_${Date.now()}`;
+      this.docGenCategory = 'clinical_documents';
+      this.docGenTitle = `${this.docGenTemplateName} - Document Instance`;
+    }
+
+    const payloadObj = samples[sampleKey] || samples['physiotherapy'];
+    this.docGenPayloadText = JSON.stringify(payloadObj, null, 2);
+    this.updateDocGenPreview();
+    this.pDialogGenerateDocument = true;
+    this.cdr.markForCheck();
+  }
+
+  fillDocGenSample(type: string): void {
+    const samples = this.documentService.getSamplePayloads();
+    if (samples[type]) {
+      this.docGenPayloadText = JSON.stringify(samples[type], null, 2);
+      this.updateDocGenPreview();
+    }
+  }
+
+  updateDocGenPreview(): void {
+    try {
+      const parsed = JSON.parse(this.docGenPayloadText || '{}');
+      this.docGenPreviewHtml = DataBindingEngine.render(
+        this.docGenTemplateHtml || '',
+        parsed,
+        { locale: this.currentLang === 'German' ? 'de-DE' : 'en-US' }
+      );
+    } catch (e) {
+      this.docGenPreviewHtml = `<div class="p-3 text-red-500 font-semibold">Invalid JSON Payload: ${(e as any)?.message}</div>`;
+    }
+    this.cdr.markForCheck();
+  }
+
+  generateAndSaveDocumentInstance(): void {
+    if (!this.rbacService.hasPermission('document:generate')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: Missing required permission document:generate'
+      );
+      return;
+    }
+
+    if (!this.docGenTitle || !this.docGenTitle.trim()) {
+      AppUtils.showErrorViaToast(this.messageService, 'Document Title is required.');
+      return;
+    }
+
+    let payload: Record<string, unknown> = {};
+    try {
+      payload = JSON.parse(this.docGenPayloadText || '{}');
+    } catch (e) {
+      AppUtils.showErrorViaToast(this.messageService, 'JSON payload syntax error.');
+      return;
+    }
+
+    const newDoc = this.documentService.generateAndSaveDocument({
+      templateId: this.docGenTemplateId || 'custom_template',
+      templateName: this.docGenTemplateName || 'Clinical Template',
+      title: this.docGenTitle.trim(),
+      templateHtml: this.docGenTemplateHtml,
+      payload,
+      category: this.docGenCategory,
+      options: {
+        locale: this.currentLang === 'German' ? 'de-DE' : 'en-US',
+        actor: 'Dr. Clinician',
+        initialStatus: 'rendered'
+      }
+    });
+
+    this.loadDocumentInstances();
+    this.pDialogGenerateDocument = false;
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Document "${newDoc.title}" generated and stored successfully!`
+    );
+    this.cdr.markForCheck();
+  }
+
+  openDocumentInCanvas(doc: DocumentInstance): void {
+    if (!this.grapeEditorService?.editor) return;
+    const contentToLoad = doc.renderedHtml || doc.rawTemplateHtml || '';
+    this.grapeEditorService.editor.setComponents(contentToLoad);
+    this.activeFormatName = doc.title;
+    this.pDialogDocumentInstances = false;
+    this.pDialogDocumentView = false;
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Loaded document "${doc.title}" onto canvas.`
+    );
+    this.cdr.markForCheck();
+  }
+
+  viewDocumentInstance(doc: DocumentInstance): void {
+    this.selectedDocumentForView = doc;
+    this.pDialogDocumentView = true;
+    this.cdr.markForCheck();
+  }
+
+  changeDocumentStatus(doc: DocumentInstance, status: DocumentStatus): void {
+    this.documentService.updateDocumentStatus(doc.id, status, 'Dr. Clinician');
+    this.loadDocumentInstances();
+    if (this.selectedDocumentForView && this.selectedDocumentForView.id === doc.id) {
+      this.selectedDocumentForView = this.documentService.getDocumentById(doc.id) || null;
+    }
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Document status updated to ${status.toUpperCase()}`
+    );
+    this.cdr.markForCheck();
+  }
+
+  deleteDocumentInstance(doc: DocumentInstance): void {
+    if (!this.rbacService.hasPermission('document:delete')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: Missing required permission document:delete'
+      );
+      return;
+    }
+    this.documentService.deleteDocument(doc.id);
+    this.loadDocumentInstances();
+    if (this.selectedDocumentForView?.id === doc.id) {
+      this.selectedDocumentForView = null;
+      this.pDialogDocumentView = false;
+    }
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Deleted document "${doc.title}".`
+    );
+    this.cdr.markForCheck();
+  }
+
+  exportDocAsHtml(doc: DocumentInstance): void {
+    this.documentService.exportDocumentAsHtml(doc);
+    AppUtils.showSuccessViaToast(this.messageService, `Exported HTML for "${doc.title}".`);
+  }
+
+  exportDocAsJson(doc: DocumentInstance): void {
+    this.documentService.exportDocumentAsJson(doc);
+    AppUtils.showSuccessViaToast(this.messageService, `Exported JSON for "${doc.title}".`);
+  }
+
+  openBatchGenerateDialog(): void {
+    const batchDemoRecords = [
+      {
+        patient: { name: 'Erika Musterfrau', dob: '1979-04-12', mrn: 'MRN-DE-1101', phone: '+49 30 111-222' },
+        doctor: { name: 'Dr. Stefan Berger' },
+        pain_score: '6/10',
+        treatment_goals: 'LWS Mobilisation'
+      },
+      {
+        patient: { name: 'Johann Becker', dob: '1965-09-28', mrn: 'MRN-DE-1102', phone: '+49 30 333-444' },
+        doctor: { name: 'Dr. Stefan Berger' },
+        pain_score: '8/10',
+        treatment_goals: 'Schmerztherapie & Haltungstraining'
+      },
+      {
+        patient: { name: 'Greta Lehmann', dob: '1992-12-05', mrn: 'MRN-DE-1103', phone: '+49 30 555-666' },
+        doctor: { name: 'Dr. Stefan Berger' },
+        pain_score: '4/10',
+        treatment_goals: 'Post-operative Knie-Rehabilitation'
+      }
+    ];
+
+    this.batchRecordsJson = JSON.stringify(batchDemoRecords, null, 2);
+    this.batchTitlePattern = 'Physio Befund - {{patient.name}} ({{patient.mrn}})';
+    this.batchResult = null;
+
+    const canvasHtml = this.grapeEditorService?.editor?.getHtml() || '';
+    this.batchTemplateHtml = canvasHtml || this.documentFormats[0]?.defaultHtml || '';
+    this.batchTemplateName = this.activeFormatName || 'Physiotherapy Intake';
+    this.batchTemplateId = 'tmpl_batch_physio';
+
+    this.pDialogBatchGenerate = true;
+    this.cdr.markForCheck();
+  }
+
+  executeBatchGenerate(): void {
+    let records: any[] = [];
+    try {
+      records = JSON.parse(this.batchRecordsJson || '[]');
+      if (!Array.isArray(records) || records.length === 0) {
+        AppUtils.showErrorViaToast(this.messageService, 'Records must be a non-empty JSON array.');
+        return;
+      }
+    } catch (e) {
+      AppUtils.showErrorViaToast(this.messageService, 'Invalid JSON array for batch generation.');
+      return;
+    }
+
+    this.batchResult = this.documentService.batchGenerate({
+      templateId: this.batchTemplateId || 'batch_tmpl',
+      templateName: this.batchTemplateName || 'Clinical Template',
+      templateHtml: this.batchTemplateHtml,
+      records,
+      titlePattern: this.batchTitlePattern,
+      category: 'physiotherapy'
+    });
+
+    this.loadDocumentInstances();
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Batch completed: ${this.batchResult.successful} documents generated!`
+    );
+    this.cdr.markForCheck();
+  }
+
+  // =========================================================================
+  // Phase 8: Export & Document Generation / PDF Pipeline Methods
+  // =========================================================================
+
+  openPdfExportDialog(targetHtml?: string, title?: string, doc?: DocumentInstance): void {
+    this.pdfExportSourceDoc = doc || null;
+
+    let contentToPrint = targetHtml;
+    if (!contentToPrint) {
+      // Capture canvas content
+      const canvasHtml = this.grapeEditorService?.editor?.getHtml() || '';
+      const canvasCss = this.grapeEditorService?.editor?.getCss() || '';
+      contentToPrint = canvasHtml ? `${canvasHtml}<style>${canvasCss}</style>` : '';
+    }
+
+    if (!contentToPrint) {
+      contentToPrint = `<div style="padding: 24px; text-align: center; color: #64748b; font-family: sans-serif;">
+        <h2 style="color: #0f172a; margin-bottom: 8px;">Empty Document Canvas</h2>
+        <p>No document content is currently available to export. Please design or load a document first.</p>
+      </div>`;
+    }
+
+    this.pdfTargetContentHtml = contentToPrint;
+
+    const docTitle = title || doc?.title || this.activeFormatName || 'Healthcare Clinical Record';
+    const mrn = doc?.patientMrn || 'MRN-2026-98214';
+
+    this.pdfExportOptions = {
+      pageSize: 'A4',
+      orientation: 'portrait',
+      margins: 'normal',
+      includeHeader: true,
+      includeFooter: true,
+      includePageNumbers: true,
+      watermark: 'none',
+      customWatermarkText: '',
+      includeVerificationQr: true,
+      verificationCode: `VERIFIED-${doc?.id || Date.now()}`,
+      includeBarcode: true,
+      barcodeValue: mrn,
+      documentTitle: docTitle,
+      organizationName: 'HEALTHCARE MEDICAL NETWORK',
+      footerNote: 'Confidential Medical Record. Unauthorized duplication or disclosure prohibited under DSGVO / EU-GDPR.'
+    };
+
+    this.updatePdfPreview();
+    this.pDialogPdfExport = true;
+    this.cdr.markForCheck();
+  }
+
+  updatePdfPreview(): void {
+    this.pdfPreviewHtml = this.pdfExportService.buildPrintPreviewHtml(
+      this.pdfTargetContentHtml,
+      this.pdfExportOptions
+    );
+    this.cdr.markForCheck();
+  }
+
+  executePrint(): void {
+    this.pdfExportService.triggerPrint(
+      this.pdfTargetContentHtml,
+      this.pdfExportOptions
+    );
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Print spooler dispatched for "${this.pdfExportOptions.documentTitle}".`
+    );
+  }
+
+  downloadPrintableHtml(): void {
+    this.pdfExportService.exportStandalonePrintHtml(
+      this.pdfTargetContentHtml,
+      this.pdfExportOptions,
+      this.pdfExportOptions.documentTitle
+    );
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Downloaded standalone print package for "${this.pdfExportOptions.documentTitle}".`
+    );
+  }
+
+  // =========================================================================
+  // Phase 9: API-First Architecture & Developer Studio Methods
+  // =========================================================================
+
+  openApiPortal(): void {
+    this.apiEndpoints = this.apiClientService.getEndpointDefinitions();
+    if (!this.selectedApiEndpoint && this.apiEndpoints.length > 0) {
+      this.selectedApiEndpoint = this.apiEndpoints[0];
+      this.apiRequestBodyText = JSON.stringify(this.selectedApiEndpoint.sampleBody || {}, null, 2);
+    }
+    const keys = this.apiClientService.getApiKeys();
+    if (!this.selectedApiKey || !keys.some(k => k.id === this.selectedApiKey?.id)) {
+      this.selectedApiKey = this.apiClientService.getActiveApiKey() || keys[0] || null;
+    }
+    this.updateApiCodeSnippet();
+    this.pDialogApiPortal = true;
+    this.cdr.markForCheck();
+  }
+
+  selectApiEndpoint(endpoint: ApiEndpointDefinition): void {
+    this.selectedApiEndpoint = endpoint;
+    this.apiRequestBodyText = JSON.stringify(endpoint.sampleBody || {}, null, 2);
+    this.apiResponseResult = null;
+    this.updateApiCodeSnippet();
+    this.cdr.markForCheck();
+  }
+
+  setApiActiveTab(tab: 'console' | 'keys' | 'snippets' | 'audit'): void {
+    this.apiActiveTab = tab;
+    this.updateApiCodeSnippet();
+    this.cdr.markForCheck();
+  }
+
+  async executeApiConsoleRequest(): Promise<void> {
+    if (!this.selectedApiEndpoint) return;
+
+    this.isExecutingApiRequest = true;
+    this.apiResponseResult = null;
+    this.cdr.markForCheck();
+
+    let parsedBody: any = undefined;
+    if (this.selectedApiEndpoint.method !== 'GET' && this.apiRequestBodyText.trim()) {
+      try {
+        parsedBody = JSON.parse(this.apiRequestBodyText);
+      } catch (e) {
+        this.isExecutingApiRequest = false;
+        AppUtils.showErrorViaToast(this.messageService, 'Invalid JSON in request body.');
+        this.cdr.markForCheck();
+        return;
+      }
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-API-Key': this.selectedApiKey?.secretKey || '',
+      'X-Workspace-Id': this.apiWorkspaceIdHeader || 'ws_default',
+    };
+
+    try {
+      const response = await this.apiClientService.dispatch({
+        method: this.selectedApiEndpoint.method,
+        endpoint: this.selectedApiEndpoint.path,
+        headers,
+        body: parsedBody,
+      });
+
+      this.apiResponseResult = response;
+
+      if (response.status >= 200 && response.status < 300) {
+        AppUtils.showSuccessViaToast(
+          this.messageService,
+          `API ${response.status} ${response.statusText} (${response.durationMs}ms)`
+        );
+      } else {
+        AppUtils.showWarnViaToast(
+          this.messageService,
+          `API ${response.status} ${response.statusText}: ${response.error?.message || 'Check error details.'}`
+        );
+      }
+    } catch (err: any) {
+      AppUtils.showErrorViaToast(this.messageService, `API execution error: ${err?.message || err}`);
+    } finally {
+      this.isExecutingApiRequest = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  updateApiCodeSnippet(): void {
+    if (!this.selectedApiEndpoint) return;
+
+    let parsedBody: any = undefined;
+    try {
+      if (this.apiRequestBodyText.trim()) {
+        parsedBody = JSON.parse(this.apiRequestBodyText);
+      }
+    } catch (e) {}
+
+    const key = this.selectedApiKey?.secretKey || 'sk_live_sample_key';
+    const ws = this.apiWorkspaceIdHeader || 'ws_default';
+
+    if (this.apiSnippetLang === 'curl') {
+      this.generatedCodeSnippet = this.apiClientService.generateCurlSnippet(
+        this.selectedApiEndpoint,
+        parsedBody,
+        key,
+        ws
+      );
+    } else if (this.apiSnippetLang === 'javascript') {
+      this.generatedCodeSnippet = this.apiClientService.generateFetchSnippet(
+        this.selectedApiEndpoint,
+        parsedBody,
+        key,
+        ws
+      );
+    } else {
+      this.generatedCodeSnippet = this.apiClientService.generatePythonSnippet(
+        this.selectedApiEndpoint,
+        parsedBody,
+        key,
+        ws
+      );
+    }
+  }
+
+  setApiSnippetLang(lang: 'curl' | 'javascript' | 'python'): void {
+    this.apiSnippetLang = lang;
+    this.updateApiCodeSnippet();
+    this.cdr.markForCheck();
+  }
+
+  openCreateApiKeyModal(): void {
+    this.newApiKeyName = '';
+    this.newApiKeyWorkspace = this.apiWorkspaceIdHeader || 'ws_default';
+    this.newApiKeyRateLimit = 60;
+    this.pDialogCreateApiKey = true;
+    this.cdr.markForCheck();
+  }
+
+  submitCreateApiKey(): void {
+    if (!this.rbacService.hasPermission('api_key:manage')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: Missing required permission api_key:manage'
+      );
+      return;
+    }
+
+    if (!this.newApiKeyName.trim()) {
+      AppUtils.showErrorViaToast(this.messageService, 'API Key name is required.');
+      return;
+    }
+
+    const created = this.apiClientService.createApiKey(
+      this.newApiKeyName.trim(),
+      this.newApiKeyWorkspace || 'ws_default',
+      this.newApiKeyRateLimit || 60
+    );
+
+    this.createdApiKeyNotice = created;
+    this.selectedApiKey = created;
+    this.pDialogCreateApiKey = false;
+    this.updateApiCodeSnippet();
+
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Created API key "${created.name}".`
+    );
+    this.cdr.markForCheck();
+  }
+
+  revokeApiKey(key: ApiKey): void {
+    if (!this.rbacService.hasPermission('api_key:manage')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: Missing required permission api_key:manage'
+      );
+      return;
+    }
+    this.apiClientService.revokeApiKey(key.id);
+    AppUtils.showWarnViaToast(this.messageService, `API key "${key.name}" revoked.`);
+    this.cdr.markForCheck();
+  }
+
+  deleteApiKey(key: ApiKey): void {
+    if (!this.rbacService.hasPermission('api_key:manage')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: Missing required permission api_key:manage'
+      );
+      return;
+    }
+    this.apiClientService.deleteApiKey(key.id);
+    if (this.selectedApiKey?.id === key.id) {
+      this.selectedApiKey = this.apiClientService.getActiveApiKey() || null;
+    }
+    AppUtils.showSuccessViaToast(this.messageService, `API key "${key.name}" deleted.`);
+    this.cdr.markForCheck();
+  }
+
+  copyToClipboard(text: string, label: string = 'Copied'): void {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      AppUtils.showSuccessViaToast(this.messageService, `${label} to clipboard!`);
+    } else {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      AppUtils.showSuccessViaToast(this.messageService, `${label} to clipboard!`);
+    }
+  }
+
+  copyApiResponseJson(): void {
+    if (!this.apiResponseResult) return;
+    this.copyToClipboard(JSON.stringify(this.apiResponseResult, null, 2), 'Response JSON copied');
+  }
+
+  // =========================================================================
+  // Phase 10: Multi-Tenancy & Workspace Switcher Methods
+  // =========================================================================
+
+  openWorkspaceSwitcher(): void {
+    this.tenantOrganizations = this.tenantWorkspaceService.getOrganizations();
+    this.activeOrganization = this.tenantWorkspaceService.getActiveOrganization();
+    this.selectedOrgForWorkspaceView = this.activeOrganization || this.tenantOrganizations[0] || null;
+    this.activeWorkspace = this.tenantWorkspaceService.getActiveWorkspace();
+    this.tenantWorkspaces = this.tenantWorkspaceService.getWorkspaces();
+    if (this.activeWorkspace) {
+      this.currentWorkspaceUsers = this.tenantWorkspaceService.getWorkspaceUsers(this.activeWorkspace.id);
+    }
+    this.pDialogWorkspaceSwitcher = true;
+    this.cdr.markForCheck();
+  }
+
+  selectWorkspace(ws: Workspace): void {
+    const switched = this.tenantWorkspaceService.switchWorkspace(ws.id);
+    if (switched) {
+      this.activeWorkspace = ws;
+      this.activeOrganization = this.tenantWorkspaceService.getActiveOrganization();
+      this.currentWorkspaceUsers = this.tenantWorkspaceService.getWorkspaceUsers(ws.id);
+      this.apiWorkspaceIdHeader = ws.id;
+      this.loadDocumentInstances();
+      AppUtils.showSuccessViaToast(
+        this.messageService,
+        `Switched to Workspace: "${ws.name}" (${this.activeOrganization?.name})`
+      );
+      this.pDialogWorkspaceSwitcher = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  selectOrgForWorkspaceView(org: Organization): void {
+    this.selectedOrgForWorkspaceView = org;
+    this.cdr.markForCheck();
+  }
+
+  openCreateOrgModal(): void {
+    this.newOrgName = '';
+    this.newOrgDescription = '';
+    this.pDialogCreateOrganization = true;
+    this.cdr.markForCheck();
+  }
+
+  submitCreateOrg(): void {
+    if (!this.rbacService.hasPermission('workspace:manage')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: Missing required permission workspace:manage'
+      );
+      return;
+    }
+
+    if (!this.newOrgName.trim()) {
+      AppUtils.showErrorViaToast(this.messageService, 'Organization name is required.');
+      return;
+    }
+    const created = this.tenantWorkspaceService.createOrganization({
+      name: this.newOrgName.trim(),
+      description: this.newOrgDescription.trim(),
+    });
+    this.activeOrganization = this.tenantWorkspaceService.getActiveOrganization();
+    this.activeWorkspace = this.tenantWorkspaceService.getActiveWorkspace();
+    this.tenantOrganizations = this.tenantWorkspaceService.getOrganizations();
+    this.tenantWorkspaces = this.tenantWorkspaceService.getWorkspaces();
+    this.selectedOrgForWorkspaceView = created;
+    this.pDialogCreateOrganization = false;
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Created organization "${created.name}" with default workspace.`
+    );
+    this.cdr.markForCheck();
+  }
+
+  openCreateWorkspaceModal(org?: Organization): void {
+    if (org) {
+      this.selectedOrgForWorkspaceView = org;
+    }
+    this.newWsName = '';
+    this.newWsDescription = '';
+    this.newWsIndustry = (this.selectedOrgForWorkspaceView?.metadata?.['industry'] as string) || 'healthcare';
+    this.newWsLanguage = 'de';
+    this.newWsCountry = 'DE';
+    this.pDialogCreateWorkspace = true;
+    this.cdr.markForCheck();
+  }
+
+  submitCreateWorkspace(): void {
+    if (!this.rbacService.hasPermission('workspace:manage')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: Missing required permission workspace:manage'
+      );
+      return;
+    }
+
+    const org = this.selectedOrgForWorkspaceView || this.activeOrganization;
+    if (!org) {
+      AppUtils.showErrorViaToast(this.messageService, 'Select an organization first.');
+      return;
+    }
+    if (!this.newWsName.trim()) {
+      AppUtils.showErrorViaToast(this.messageService, 'Workspace name is required.');
+      return;
+    }
+
+    const created = this.tenantWorkspaceService.createWorkspace({
+      organizationId: org.id,
+      name: this.newWsName.trim(),
+      description: this.newWsDescription.trim(),
+      industry: this.newWsIndustry,
+      defaultLanguage: this.newWsLanguage,
+      defaultCountry: this.newWsCountry,
+    });
+
+    this.tenantWorkspaces = this.tenantWorkspaceService.getWorkspaces();
+    this.selectWorkspace(created);
+    this.pDialogCreateWorkspace = false;
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Workspace "${created.name}" created and activated.`
+    );
+    this.cdr.markForCheck();
+  }
+
+  deleteTenantWorkspace(ws: Workspace): void {
+    if (!this.rbacService.hasPermission('workspace:manage')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: Missing required permission workspace:manage'
+      );
+      return;
+    }
+
+    if (this.tenantWorkspaces.length <= 1) {
+      AppUtils.showWarnViaToast(this.messageService, 'Cannot delete the only remaining workspace.');
+      return;
+    }
+    const ok = this.tenantWorkspaceService.deleteWorkspace(ws.id);
+    if (ok) {
+      AppUtils.showSuccessViaToast(this.messageService, `Workspace "${ws.name}" deleted.`);
+      this.cdr.markForCheck();
+    }
+  }
+
+  getWorkspacesForSelectedOrg(): Workspace[] {
+    if (!this.selectedOrgForWorkspaceView) {
+      return this.tenantWorkspaces;
+    }
+    return this.tenantWorkspaces.filter(
+      (w) => w.organizationId === this.selectedOrgForWorkspaceView?.id
+    );
+  }
+
+  // =========================================================================
+  // Phase 11: Roles & Permissions (RBAC) Operations
+  // =========================================================================
+
+  openRbacCenter(): void {
+    this.availableSimulatedUsers = this.rbacService.getAvailableUsers();
+    this.activeUser = this.rbacService.getCurrentUser();
+    this.activeUserRole = this.rbacService.getCurrentRole();
+    this.activePermissions = this.rbacService.getCurrentPermissions();
+    this.isSimulatingRole = this.rbacService.isSimulating();
+    this.pDialogRbac = true;
+    this.cdr.markForCheck();
+  }
+
+  selectSimulatedUser(user: User): void {
+    if (!user) return;
+    this.rbacService.setCurrentUser(user);
+    this.activeUser = user;
+    this.activeUserRole = this.rbacService.getCurrentRole();
+    this.activePermissions = this.rbacService.getCurrentPermissions();
+    this.isSimulatingRole = false;
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      `Switched active user to ${user.firstName} ${user.lastName} (${this.getRoleDisplayName(user.role)}).`
+    );
+    this.cdr.markForCheck();
+  }
+
+  simulateRole(role: UserRole): void {
+    this.rbacService.simulateRole(role);
+    this.activeUserRole = role;
+    this.activePermissions = this.rbacService.getCurrentPermissions();
+    this.isSimulatingRole = true;
+    AppUtils.showWarnViaToast(
+      this.messageService,
+      `Simulating ${this.getRoleDisplayName(role)} permissions.`
+    );
+    this.cdr.markForCheck();
+  }
+
+  resetRoleSimulation(): void {
+    this.rbacService.resetSimulation();
+    this.activeUserRole = this.rbacService.getCurrentRole();
+    this.activePermissions = this.rbacService.getCurrentPermissions();
+    this.isSimulatingRole = false;
+    AppUtils.showSuccessViaToast(
+      this.messageService,
+      'Restored assigned user role & permissions.'
+    );
+    this.cdr.markForCheck();
+  }
+
+  hasRbacPermission(perm: Permission): boolean {
+    return this.rbacService.hasPermission(perm);
+  }
+
+  getRoleDisplayName(role?: UserRole | null): string {
+    if (!role) return 'Unknown Role';
+    const def = this.rbacService.getRoleDefinition(role);
+    return def ? def.displayName : role;
+  }
+
+  getRoleDescription(role?: UserRole | null): string {
+    if (!role) return '';
+    const def = this.rbacService.getRoleDefinition(role);
+    return def ? def.description : '';
+  }
+
+  deleteGenericTemplate(template: TemplateDefinition): void {
+    if (!this.rbacService.hasPermission('template:delete')) {
+      AppUtils.showErrorViaToast(
+        this.messageService,
+        'Access Denied: Missing permission template:delete'
+      );
+      return;
+    }
+    const ok = this.templateStore.delete(template.id);
+    if (ok) {
+      this.genericTemplates = this.templateStore.list();
+      if (this.activeGenericTemplate?.id === template.id) {
+        this.activeGenericTemplate = null;
+      }
+      AppUtils.showSuccessViaToast(this.messageService, `Template "${template.name}" deleted.`);
+      this.cdr.markForCheck();
+    }
+  }
+
+  getWorkspaceDocumentCount(workspaceId: string): number {
+    return this.documentService.getDocumentsByWorkspace(workspaceId).length;
+  }
+
+  // =========================================================================
+  // Toolbar Categorization & Flyout Navigation Hubs
+  // =========================================================================
+
+  activeToolbarMenu: 'templates' | 'clinical' | 'documents' | 'platform' | null = null;
+
+  toggleCategoryMenu(category: 'templates' | 'clinical' | 'documents' | 'platform', event?: MouseEvent): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (this.activeToolbarMenu === category) {
+      this.activeToolbarMenu = null;
+    } else {
+      this.activeToolbarMenu = category;
+    }
+    this.cdr.markForCheck();
+  }
+
+  closeCategoryMenu(): void {
+    if (this.activeToolbarMenu !== null) {
+      this.activeToolbarMenu = null;
+      this.cdr.markForCheck();
+    }
+  }
+
+  runCategoryAction(action: string): void {
+    this.closeCategoryMenu();
+    switch (action) {
+      case 'createWithAi':
+        this.openCreateWithAIDialog();
+        break;
+      case 'templateGallery':
+        this.openTemplateGallery();
+        break;
+      case 'templateManager':
+        this.openTemplateManager();
+        break;
+      case 'variableInserter':
+        this.openVariableInserter();
+        break;
+      case 'brandSettings':
+        this.openBrandSettings();
+        break;
+      case 'patientContext':
+        this.openPatientContext();
+        break;
+      case 'reviewClinical':
+        this.reviewClinicalDocument();
+        break;
+      case 'signClinical':
+        this.signClinicalDocument();
+        break;
+      case 'auditTrail':
+        this.openAuditTrail();
+        break;
+      case 'generateDocument':
+        this.openGenerateDocumentDialog();
+        break;
+      case 'documentInstances':
+        this.openDocumentInstancesDialog();
+        break;
+      case 'pdfExport':
+        this.openPdfExportDialog();
+        break;
+      case 'dataPreview':
+        this.openDataPreview();
+        break;
+      case 'workspaceSwitcher':
+        this.openWorkspaceSwitcher();
+        break;
+      case 'rbacCenter':
+        this.openRbacCenter();
+        break;
+      case 'apiPortal':
+        this.openApiPortal();
+        break;
+      default:
+        break;
+    }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.activeToolbarMenu) {
+      return;
+    }
+    const target = event.target as HTMLElement;
+    if (target && !target.closest('.fb-category-group')) {
+      this.closeCategoryMenu();
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapePress(): void {
+    this.closeCategoryMenu();
+  }
+
   // openDialog() {
   //   this.pDialogAddScript = true;
   //   console.log(this.scriptData);

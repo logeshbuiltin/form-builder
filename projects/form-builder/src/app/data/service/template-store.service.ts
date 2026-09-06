@@ -37,6 +37,16 @@ export class TemplateStoreService {
     return this.save(copy);
   }
 
+  delete(id: string): boolean {
+    const templates = this.list();
+    const filtered = templates.filter(item => item.id !== id);
+    if (filtered.length !== templates.length) {
+      localStorage.setItem(this.storageKey, JSON.stringify(filtered));
+      return true;
+    }
+    return false;
+  }
+
   newId(): string {
     return `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   }

@@ -27,7 +27,9 @@
     "PREVIEW_DOC": "Preview Document",
     "HELP_DOCS": "GrapesJS Documentation",
     "SAVED_LOCAL": "Document saved locally in browser!",
-    "LAYOUT_SAVED_LOCAL": "Saved as custom layout '{name}' locally!"
+    "LAYOUT_SAVED_LOCAL": "Saved as custom layout '{name}' locally!",
+    "PDF_PRINT": "PDF & Print",
+    "PDF_TOOLTIP": "High-fidelity print & PDF pipeline with custom page sizing, watermark & verification"
   },
   "GALLERY": {
     "TITLE": "Document Formats & Ready Templates (12 Formats)",
